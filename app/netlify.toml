@@ -1,0 +1,4 @@
+# Netlify: publica a pasta e liga a ponte do DataJud (netlify/functions/datajud.js)
+[build]
+  publish = "."
+  functions = "netlify/functions"

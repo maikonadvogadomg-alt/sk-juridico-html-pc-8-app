@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Processos e Jurisprudência (CNJ)</title>
+<style>
+/* 📡 DataJud (CNJ): acompanhar processos pelo número — grátis, chave pública do CNJ.
+   🔎 Jurisprudência na fonte: abre a pesquisa OFICIAL (STJ, STF, TJMG, CNJ) com os termos — nada inventado. */
+:root{color-scheme:light dark;--bg:light-dark(#f4f6fb,#0f1522);--card:light-dark(#fff,#18202f);--ink:light-dark(#141a26,#e6ebf5);--soft:light-dark(#566079,#9aa6bf);--line:light-dark(#d5dbe8,#2c3750);--acc:#2f6fed;--ok:light-dark(#0a7a55,#5fe0b0);--warn:light-dark(#a3470b,#ffb37a);--novo:#e8336b}
+*{box-sizing:border-box;min-width:0}
+html,body{overscroll-behavior:none}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,sans-serif}
+.band{max-width:1000px;margin:0 auto;padding:14px max(4vw,14px)}
+h1{font-size:clamp(24px,5vw,34px);margin:0 0 4px;line-height:1.1}
+.sub{color:var(--soft);margin:0 0 12px}
+.abas{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.abas button.on{background:var(--ink);color:var(--bg)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:12px}
+label{display:block;font-weight:600;font-size:14px;margin:8px 0 4px}
+input,select{font:16px system-ui;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px 10px;width:100%}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px}
+button,.lk{font:600 14px system-ui;min-height:42px;padding:0 12px;border-radius:8px;border:1px solid var(--ink);background:transparent;color:var(--ink);cursor:pointer;text-decoration:none;display:inline-flex;align-items:center}
+button.main{background:var(--acc);border-color:var(--acc);color:#fff}
+.msg{font-size:14px;margin-top:8px}.w{color:var(--warn)}.o{color:var(--ok)}
+.mov{border-left:3px solid var(--line);padding:4px 0 4px 10px;margin:6px 0}
+.mov b{display:block}.mov small{color:var(--soft)}
+.mov.novo{border-color:var(--novo)}
+.tag{display:inline-block;font-size:12px;border:1px solid var(--line);border-radius:20px;padding:1px 8px;margin:2px 4px 2px 0}
+.tag.novo{border-color:var(--novo);color:var(--novo);font-weight:700}
+.dl{display:grid;grid-template-columns:max-content 1fr;gap:2px 10px;font-size:14px}.dl dt{color:var(--soft)}.dl dd{margin:0}
+small{color:var(--soft)}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div class="band">
+  <h1>Processos e jurisprudência</h1>
+  <p class="sub">Dados oficiais do CNJ e dos tribunais. Grátis.</p>
+  <div class="abas"><button id="a1" class="on">📡 Acompanhar processo (DataJud)</button><button id="a2">🔎 Jurisprudência na fonte</button></div>
+
+  <section id="s1">
+    <div class="card">
+      <label for="num">Número do processo (CNJ)</label>
+      <input id="num" inputmode="numeric" placeholder="0008868-79.2018.8.13.0395">
+      <div class="row"><button class="main" id="consultar">🔍 Consultar</button><button id="acomp">⭐ Acompanhar este</button></div>
+      <div class="msg" id="msg"></div>
+    </div>
+    <div id="res"></div>
+    <div class="card">
+      <h2 style="font-size:18px;margin:0 0 6px">⭐ Processos que acompanho</h2>
+      <div class="row" style="margin-top:0"><button id="novidades">🔄 Ver novidades em todos</button></div>
+      <div id="lista" style="margin-top:8px"></div>
+    </div>
+    <details class="card">
+      <summary><b>⚙️ Ponte (se der erro de conexão)</b></summary>
+      <p><small>A API do CNJ não deixa ser chamada direto do celular. No <b>programa do PC</b> funciona sozinho. No celular, publique o jurídico no <b>Netlify pelo GitHub</b> (a ponte <code>netlify/functions/datajud.js</code> já vem no projeto) — ou cole aqui o endereço da sua ponte:</small></p>
+      <input id="ponte" placeholder="https://seu-site.netlify.app/.netlify/functions/datajud">
+      <div class="row"><button id="guardarPonte">Guardar</button></div>
+      <p><small>A chave usada é a <b>chave pública</b> que o próprio CNJ divulga (igual para todos). Se o CNJ trocar, ponha a nova no Netlify como <code>DATAJUD_KEY</code>.</small></p>
+    </details>
+  </section>
+
+  <section id="s2" hidden>
+    <div class="card">
+      <label for="termos">O que você quer pesquisar</label>
+      <input id="termos" placeholder='ex.: capitalização anual juros cartão de crédito "taxa média"'>
+      <p><small>Abre a pesquisa <b>oficial</b> de cada tribunal com os seus termos. Os termos também vão copiados, caso o site peça para colar. <b>Confira sempre o inteiro teor e o número do julgado na fonte.</b></small></p>
+      <div class="row" id="botoesJur"></div>
+      <div class="msg" id="msgJur"></div>
+    </div>
+  </section>
+</div>
+
+<script>
+{
+const $ = (i) => document.getElementById(i);
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const ler = (k, d) => { try { const v = localStorage.getItem('datajud:' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } };
+const gravar = (k, v) => { try { localStorage.setItem('datajud:' + k, JSON.stringify(v)); } catch (e) {} };
+const CHAVE = 'cDZHYzlZa0JadVREZDJCendQbXY6SkJlTzNjLV9TRENyQk1RdnFKZGRQdw==';
+const UF = ['ac','al','ap','am','ba','ce','dft','es','go','ma','mt','ms','mg','pa','pb','pr','pe','pi','rj','rn','rs','ro','rr','sc','se','sp','to'];
+const so = (n) => String(n || '').replace(/\D/g, '');
+const mascara = (d) => d.length === 20 ? d.slice(0, 7) + '-' + d.slice(7, 9) + '.' + d.slice(9, 13) + '.' + d[13] + '.' + d.slice(14, 16) + '.' + d.slice(16) : d;
+function tribunal(d) {
+  if (d.length !== 20) return null;
+  const j = d[13], tr = +d.slice(14, 16);
+  if (j === '8' && tr >= 1 && tr <= 27) return { alias: 'tj' + UF[tr - 1], nome: 'TJ' + UF[tr - 1].toUpperCase().replace('DFT', 'DFT') };
+  if (j === '4' && tr >= 1 && tr <= 6) return { alias: 'trf' + tr, nome: 'TRF' + tr };
+  if (j === '5' && tr >= 1 && tr <= 24) return { alias: 'trt' + tr, nome: 'TRT' + tr };
+  if (j === '6' && tr >= 1 && tr <= 27) return { alias: 'tre-' + (UF[tr - 1] === 'dft' ? 'df' : UF[tr - 1]), nome: 'TRE-' + UF[tr - 1].toUpperCase() };
+  if (j === '3') return { alias: 'stj', nome: 'STJ' };
+  return null;
+}
+async function chamar(alias, consulta) {
+  const corpo = JSON.stringify({ alias, consulta }), tent = [];
+  const pontes = ['/proxy/datajud', '/.netlify/functions/datajud', ler('ponte', '')].filter(Boolean);
+  for (const u of pontes) {
+    try { const r = await fetch(u, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: corpo }); const t = await r.text();
+      if (r.ok && /^\s*\{/.test(t)) return JSON.parse(t); tent.push(u + ' → ' + r.status); } catch (e) { tent.push(u + ' → ' + e.message); }
+  }
+  try { const r = await fetch('https://api-publica.datajud.cnj.jus.br/api_publica_' + alias + '/_search', { method: 'POST', headers: { Authorization: 'APIKey ' + CHAVE, 'Content-Type': 'application/json' }, body: JSON.stringify(consulta) });
+    if (r.ok) return await r.json(); tent.push('direto → ' + r.status); } catch (e) { tent.push('direto → bloqueado (CORS)'); }
+  const er = new Error('Não consegui falar com o DataJud.'); er.tent = tent; throw er;
+}
+const dataBR = (s) => { const d = new Date(s); return isNaN(d) ? String(s || '') : d.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }); };
+function render(hits, desde) {
+  if (!hits.length) return '<div class="card w">Nenhum registro no DataJud para esse número. (Processos em segredo de justiça e alguns sistemas não aparecem.)</div>';
+  return hits.map((h) => { const s = h._source || {}; const movs = (s.movimentos || []).slice().sort((a, b) => String(b.dataHora).localeCompare(String(a.dataHora)));
+    return '<div class="card"><h2 style="font-size:18px;margin:0 0 6px">' + esc(s.classe && s.classe.nome) + ' · ' + esc(s.grau || '') + '</h2><dl class="dl">' +
+      '<dt>Processo</dt><dd>' + esc(mascara(String(s.numeroProcesso || ''))) + '</dd><dt>Tribunal</dt><dd>' + esc(s.tribunal || '') + '</dd><dt>Órgão</dt><dd>' + esc(s.orgaoJulgador && s.orgaoJulgador.nome) + '</dd>' +
+      '<dt>Ajuizamento</dt><dd>' + esc(dataBR(s.dataAjuizamento)) + '</dd><dt>Atualizado no CNJ</dt><dd>' + esc(dataBR(s.dataHoraUltimaAtualizacao)) + '</dd>' +
+      '<dt>Assuntos</dt><dd>' + (s.assuntos || []).map((a) => '<span class="tag">' + esc(a.nome || (Array.isArray(a) ? a.map((x) => x.nome).join(' / ') : '')) + '</span>').join('') + '</dd></dl>' +
+      '<h3 style="font-size:16px;margin:12px 0 4px">Movimentações (' + movs.length + ')</h3>' +
+      movs.map((m) => { const novo = desde && String(m.dataHora) > desde; return '<div class="mov' + (novo ? ' novo' : '') + '"><b>' + (novo ? '<span class="tag novo">NOVO</span>' : '') + esc(m.nome) + '</b><small>' + esc(dataBR(m.dataHora)) + (m.complementosTabelados && m.complementosTabelados.length ? ' · ' + m.complementosTabelados.map((c) => esc((c.descricao || c.nome || '') + (c.valor != null ? ': ' + c.valor : ''))).join(' · ') : '') + '</small></div>'; }).join('') + '</div>';
+  }).join('');
+}
+const ultimaMov = (hits) => hits.flatMap((h) => (h._source && h._source.movimentos) || []).map((m) => String(m.dataHora)).sort().pop() || '';
+async function consultar(numero, desde) {
+  const d = so(numero), t = tribunal(d);
+  if (!t) throw new Error('Número inválido: precisa ter os 20 dígitos do padrão CNJ (ex.: 0008868-79.2018.8.13.0395).');
+  const j = await chamar(t.alias, { query: { match: { numeroProcesso: d } }, size: 10 });
+  return { t, hits: (j.hits && j.hits.hits) || [], d };
+}
+$('consultar').onclick = async () => {
+  $('msg').textContent = '⏳ Consultando o DataJud…'; $('res').innerHTML = '';
+  try { const r = await consultar($('num').value); $('msg').innerHTML = '<span class="o">✓ ' + r.t.nome + ' — ' + r.hits.length + ' registro(s).</span>'; $('res').innerHTML = render(r.hits);
+    const ac = ler('acomp', []); const i = ac.findIndex((x) => x.d === r.d); if (i >= 0) { ac[i].ult = ultimaMov(r.hits); gravar('acomp', ac); lista(); } }
+  catch (e) { $('msg').innerHTML = '<span class="w">⚠ ' + esc(e.message) + '</span>' + (e.tent ? '<br><small>Tentei: ' + esc(e.tent.join(' · ')) + '. No celular, abra o ⚙️ Ponte abaixo.</small>' : ''); }
+};
+$('acomp').onclick = () => { const d = so($('num').value); if (!tribunal(d)) { $('msg').innerHTML = '<span class="w">Número inválido.</span>'; return; }
+  const ac = ler('acomp', []); if (!ac.some((x) => x.d === d)) ac.push({ d, ult: '', nome: '' }); gravar('acomp', ac); lista(); $('msg').innerHTML = '<span class="o">⭐ Guardado na lista.</span>'; };
+function lista() { const ac = ler('acomp', []);
+  $('lista').innerHTML = ac.length ? ac.map((x, i) => '<div class="row" style="justify-content:space-between;border-bottom:1px solid var(--line);padding-bottom:6px"><span>' + esc(mascara(x.d)) + (x.novo ? ' <span class="tag novo">' + x.novo + ' NOVO(S)</span>' : '') + '<br><small>última movimentação vista: ' + esc(x.ult ? dataBR(x.ult) : '—') + '</small></span><span><button data-ver="' + i + '">Ver</button> <button data-tirar="' + i + '">✕</button></span></div>').join('') : '<small>Nenhum ainda. Consulte um número e toque em ⭐.</small>'; }
+$('lista').onclick = async (e) => { const ac = ler('acomp', []); const v = e.target.dataset.ver, t = e.target.dataset.tirar;
+  if (t != null) { ac.splice(+t, 1); gravar('acomp', ac); lista(); return; }
+  if (v != null) { const x = ac[+v]; $('num').value = mascara(x.d); $('msg').textContent = '⏳ Consultando…';
+    try { const r = await consultar(x.d); $('res').innerHTML = render(r.hits, x.ult); x.ult = ultimaMov(r.hits); x.novo = 0; gravar('acomp', ac); lista(); $('msg').innerHTML = '<span class="o">✓ ' + r.t.nome + '. O que tem "NOVO" chegou depois da última vez.</span>'; window.scrollTo(0, 0); }
+    catch (er) { $('msg').innerHTML = '<span class="w">⚠ ' + esc(er.message) + '</span>'; } } };
+$('novidades').onclick = async () => { const ac = ler('acomp', []); if (!ac.length) return; $('msg').textContent = '⏳ Vendo ' + ac.length + ' processo(s)…'; let tot = 0;
+  for (const x of ac) { try { const r = await consultar(x.d); const n = r.hits.flatMap((h) => (h._source && h._source.movimentos) || []).filter((m) => x.ult && String(m.dataHora) > x.ult).length; x.novo = n; tot += n; if (!x.ult) x.ult = ultimaMov(r.hits); } catch (e) { x.novo = 0; } }
+  gravar('acomp', ac); lista(); $('msg').innerHTML = tot ? '<span class="o">🔔 ' + tot + ' movimentação(ões) nova(s). Toque em "Ver".</span>' : '<span class="o">Nada novo desde a última vez.</span>'; };
+$('ponte').value = ler('ponte', ''); $('guardarPonte').onclick = () => { gravar('ponte', $('ponte').value.trim()); $('msg').innerHTML = '<span class="o">Ponte guardada.</span>'; };
+$('num').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('consultar').click(); });
+lista();
+
+// ===== 🔎 Jurisprudência na fonte =====
+const FONTES = [
+  ['STJ — pesquisa de jurisprudência', (q) => 'https://scon.stj.jus.br/SCON/pesquisar.jsp?livre=' + encodeURIComponent(q)],
+  ['STF — pesquisa de jurisprudência', (q) => 'https://jurisprudencia.stf.jus.br/pages/search?base=acordaos&queryString=' + encodeURIComponent(q)],
+  ['TJMG — pesquisa de jurisprudência', () => 'https://www5.tjmg.jus.br/jurisprudencia/formEspelhoAcordao.do'],
+  ['CNJ — Banco Nacional de Precedentes', () => 'https://pangeabnp.pdpj.jus.br/'],
+  ['Google só nos sites oficiais', (q) => 'https://www.google.com/search?q=' + encodeURIComponent(q + ' (site:stj.jus.br OR site:stf.jus.br OR site:tjmg.jus.br OR site:cnj.jus.br)')],
+];
+$('botoesJur').innerHTML = FONTES.map((f, i) => '<a class="lk" href="#" target="_blank" rel="noopener" data-f="' + i + '">' + esc(f[0]) + '</a>').join('');
+$('botoesJur').onclick = async (e) => { const a = e.target.closest('[data-f]'); if (!a) return; const q = $('termos').value.trim();
+  if (!q) { e.preventDefault(); $('msgJur').innerHTML = '<span class="w">Escreva o que quer pesquisar.</span>'; return; }
+  a.href = FONTES[+a.dataset.f][1](q); try { await navigator.clipboard.writeText(q); $('msgJur').innerHTML = '<span class="o">Abrindo… os termos também foram copiados (se o site pedir, é só colar).</span>'; } catch (er) {} };
+$('a1').onclick = () => { $('s1').hidden = false; $('s2').hidden = true; $('a1').classList.add('on'); $('a2').classList.remove('on'); };
+$('a2').onclick = () => { $('s1').hidden = true; $('s2').hidden = false; $('a2').classList.add('on'); $('a1').classList.remove('on'); };
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,1408 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Calculadora de Sentença — Modelo Geral (v25/11-A)</title>
+<style>
+:root{
+  --bg:#0f172a;--panel:#111827;--txt:#e5e7eb;--muted:#9ca3af;--accent:#10b981;
+  --good:#10b981;--bad:#ef4444;--info:#3b82f6;--paper:#ffffff;--border:#243244;
+  --gold:#b45309;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{overscroll-behavior:none}
+body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#e5e7eb;color:#111827;overflow:hidden}
+header{background:var(--bg);color:var(--txt);padding:12px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px}
+header h1{font-size:13px;letter-spacing:.4px;text-transform:uppercase}
+header .clock{font-family:ui-monospace,monospace;font-size:12px;color:var(--muted)}
+.wrap{display:flex;height:calc(100vh - 44px)}
+.left{width:520px;min-width:520px;background:var(--panel);color:var(--txt);overflow:auto;padding:14px;border-right:1px solid var(--border)}
+.right{flex:1;background:#cbd5e1;overflow:auto;padding:14px}
+
+h2{font-size:11px;margin:14px 0 6px;color:var(--accent);text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid var(--border);padding-bottom:4px}
+.box{background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:10px;padding:10px;margin-bottom:8px}
+label{display:block;font-size:11px;color:var(--muted);margin:6px 0 3px}
+input,select,textarea{
+  width:100%;background:rgba(0,0,0,.25);color:var(--txt);border:1px solid var(--border);
+  border-radius:8px;padding:8px 10px;font-size:12px;outline:none
+}
+input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+textarea{min-height:90px;font-family:ui-monospace,monospace;resize:vertical;font-size:11px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.row4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px}
+button{
+  border:0;border-radius:8px;padding:8px 12px;font-weight:800;cursor:pointer;
+  text-transform:uppercase;font-size:10px;letter-spacing:.3px;transition:opacity .15s
+}
+button:hover{opacity:.9}
+.b1{background:var(--accent);color:#052e16}
+.b2{background:var(--bad);color:#fff}
+.b3{background:var(--info);color:#fff}
+.b4{background:#fff;color:#111827;border:1px solid #cbd5e1}
+.b5{background:#f59e0b;color:#111827}
+.b6{background:var(--gold);color:#fff}
+
+.hint{font-size:11px;line-height:1.3;background:rgba(16,185,129,.1);border-left:3px solid var(--accent);padding:8px 10px;border-radius:8px;color:var(--txt);margin-bottom:8px}
+.status{white-space:pre-wrap;font-size:11px;line-height:1.3;background:rgba(0,0,0,.25);border:1px solid var(--border);padding:8px;border-radius:8px;color:var(--txt);max-height:100px;overflow:auto}
+
+.paper{background:var(--paper);border-radius:12px;padding:20px 24px;box-shadow:0 8px 24px rgba(0,0,0,.12);min-height:100%;font-family:'Times New Roman',Georgia,serif;font-size:13px;line-height:1.5;color:#1a1a1a}
+.paper .title{text-align:center;font-size:16px;font-weight:bold;margin-bottom:4px;text-transform:uppercase;letter-spacing:1px}
+.paper .subtitle{text-align:center;font-size:12px;color:#555;margin-bottom:16px}
+.paper .section{margin:16px 0 8px;font-size:14px;font-weight:bold;border-bottom:2px solid #1a1a1a;padding-bottom:4px}
+.paper .subsection{margin:10px 0 6px;font-size:13px;font-weight:bold}
+
+.quad{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:12px 0}
+.quad-box{border:2px solid #d1d5db;border-radius:10px;padding:14px;text-align:center}
+.quad-box.a{border-color:#ef4444;background:#fef2f2}
+.quad-box.b{border-color:#10b981;background:#f0fdf4}
+.quad-box .lbl{font-size:11px;color:#666;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+.quad-box .val{font-size:22px;font-weight:900}
+.quad-box.a .val{color:#dc2626}
+.quad-box.b .val{color:#059669}
+.proveito{text-align:center;margin:12px 0;padding:12px;background:#eff6ff;border:2px solid #3b82f6;border-radius:10px}
+.proveito .lbl{font-size:11px;color:#666;text-transform:uppercase}
+.proveito .val{font-size:20px;font-weight:900;color:#1d4ed8}
+.honorarios{text-align:center;margin:8px 0;padding:10px;background:#fefce8;border:2px solid #eab308;border-radius:10px}
+.honorarios .lbl{font-size:11px;color:#666;text-transform:uppercase}
+.honorarios .val{font-size:18px;font-weight:900;color:#a16207}
+.total-geral{text-align:center;margin:8px 0 16px;padding:12px;background:#f0fdf4;border:2px solid #059669;border-radius:10px}
+.total-geral .lbl{font-size:11px;color:#666;text-transform:uppercase}
+.total-geral .val{font-size:18px;font-weight:900;color:#059669}
+
+.criterios-box{background:#fffdf0;border:1px solid #ccc;padding:15px;margin:10px 0;font-size:11pt;text-align:justify;line-height:1.5}
+
+table.mem{border-collapse:collapse;width:100%;font-size:10px;margin:8px 0;font-family:ui-monospace,monospace}
+table.mem th,table.mem td{border:1px solid #d1d5db;padding:4px 6px;text-align:right}
+table.mem th{background:#f1f5f9;font-weight:800;text-align:center;font-size:9px;text-transform:uppercase}
+table.mem td:first-child{text-align:center;font-weight:600}
+table.mem tr:nth-child(even){background:#f8fafc}
+table.mem tr.cap{background:#dbeafe !important;font-weight:700}
+
+.assinatura{text-align:center;margin-top:30px;padding-top:10px}
+.assinatura .linha{width:300px;border-top:1px solid #1a1a1a;margin:0 auto 6px;padding-top:6px}
+.assinatura .nome{font-weight:bold;font-size:13px}
+.assinatura .oab{font-size:11px;color:#555}
+
+.topbar{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px;font-family:system-ui}
+.topbar .btns{display:flex;gap:6px;flex-wrap:wrap}
+.topbar .btns button{font-family:system-ui;font-size:10px}
+
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:9999}
+.ovbox{background:#fff;border-radius:12px;padding:18px;min-width:300px;box-shadow:0 20px 60px rgba(0,0,0,.4);color:#0f172a;text-align:center}
+.spin{width:18px;height:18px;border:3px solid #cbd5e1;border-top-color:var(--accent);border-radius:50%;display:inline-block;animation:sp 1s linear infinite;vertical-align:middle;margin-right:8px}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+@media(max-width:900px){
+  .wrap{flex-direction:column;height:auto;overflow:auto}
+  .left{width:100%;min-width:auto;border-right:none;border-bottom:1px solid var(--border)}
+  .right{min-height:60vh}
+  .row3,.row4{grid-template-columns:1fr 1fr}
+  body{overflow:auto}
+  .quad{grid-template-columns:1fr}
+}
+@media print{
+  body{overflow:visible}
+  .left,header,.topbar,.hint,.status,.overlay{display:none !important}
+  .wrap{display:block}
+  .right{padding:0;background:#fff}
+  .paper{box-shadow:none;border-radius:0;padding:10mm}
+  table.mem{font-size:9px}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Auditoria Financeira — Calculadora de Sentença · Geral v25/11-A</h1>
+  <div class="clock" id="clock"></div>
+</header>
+
+<div class="overlay" id="ov">
+  <div class="ovbox">
+    <div><span class="spin"></span><b id="ovMsg">Processando…</b></div>
+    <div style="margin-top:6px;color:#64748b;font-size:12px" id="ovSub">Aguarde.</div>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="left">
+    <div class="hint">
+      <b>Modelo geral</b> — serve para qualquer processo. Correção: tabela TJMG embutida, tabela colada de qualquer tribunal (PDF/Excel/texto) ou INPC/IPCA automático. Juros: qualquer série do Banco Central (código), ao ano ou ao mês. Preencha os dados conforme a sentença. Os fatores TJMG podem ser colados do PDF da Corregedoria.
+      A taxa BCB é buscada automaticamente do sistema SGS.
+    </div>
+
+    <h2>1) Dados do Caso</h2>
+    <div class="box">
+      <label>Número do Processo</label>
+      <input id="numProcesso" placeholder="0000000-00.0000.0.00.0000" data-testid="input-processo"/>
+      <label>Nome do Cliente</label>
+      <input id="nomeCliente" placeholder="Nome do cliente" data-testid="input-cliente"/>
+      <div class="row">
+        <div>
+          <label>Nome do Advogado</label>
+          <input id="nomeAdv" placeholder="Dr. Fulano de Tal" data-testid="input-advogado"/>
+        </div>
+        <div>
+          <label>OAB</label>
+          <input id="oab" placeholder="OAB/MG 000.000" data-testid="input-oab"/>
+        </div>
+      </div>
+      <label>Valor Base da Dívida (R$)</label>
+      <input id="valorBase" type="number" step="0.01" value="" placeholder="ex.: 10000.00" data-testid="input-valor-base"/>
+      <div class="row">
+        <div>
+          <label>Data Início (dd/mm/aaaa)</label>
+          <input id="dataInicio" value="" placeholder="dd/mm/aaaa" data-testid="input-data-inicio"/>
+        </div>
+        <div>
+          <label>Data Fim (dd/mm/aaaa)</label>
+          <input id="dataFim" value="" placeholder="dd/mm/aaaa" data-testid="input-data-fim"/>
+        </div>
+      </div>
+      <label>Mês de capitalização anual (mês que os juros incorporam ao principal)</label>
+      <select id="mesCapitalizacao" data-testid="select-mes-cap">
+        <option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option>
+        <option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option>
+        <option value="7">Julho</option><option value="8" selected>Agosto</option><option value="9">Setembro</option>
+        <option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option>
+      </select>
+    </div>
+
+    <h2>2) Cenário A — Banco/Contrato</h2>
+    <div class="box">
+      <div class="row">
+        <div>
+          <label>Taxa Juros Banco (% ao mês)</label>
+          <input id="txJurosBanco" type="number" step="0.01" value="9" data-testid="input-juros-banco"/>
+        </div>
+        <div>
+          <label>Taxa Mora Banco (% ao mês)</label>
+          <input id="txMoraBanco" type="number" step="0.01" value="1" data-testid="input-mora-banco"/>
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label>Multa Contratual (%)</label>
+          <input id="multaBanco" type="number" step="0.01" value="2" data-testid="input-multa-banco"/>
+        </div>
+        <div>
+          <label>Capitalização Banco</label>
+          <select id="capBanco" data-testid="select-cap-banco">
+            <option value="mensal" selected>Mensal (Compostos)</option>
+            <option value="anual">Anual</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <h2>3) Cenario B -- Sentenca/Juiz</h2>
+    <div class="box">
+      <div class="row">
+        <div>
+          <label>Taxa Mora Sentenca (% ao mes)</label>
+          <input id="txMoraSentenca" type="number" step="0.01" value="1" data-testid="input-mora-sentenca"/>
+        </div>
+        <div>
+          <label>Multa Mora / Art. 523 CPC (%)</label>
+          <input id="multaSentenca" type="number" step="0.01" value="10" data-testid="input-multa-sentenca"/>
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label>Capitalizacao dos Juros (sentenca)</label>
+          <select id="capSentenca" data-testid="select-cap-sentenca">
+            <option value="anual" selected>Anual - Juros simples c/ cap. anual (Art. 591 CC)</option>
+            <option value="mensal">Mensal - Juros compostos mensais</option>
+            <option value="nenhuma">Sem capitalizacao - Juros simples puro</option>
+          </select>
+        </div>
+        <div style="display:flex;align-items:end">
+          <span style="font-size:10px;color:var(--muted);padding:8px 0">Juros sempre incidem sobre o principal corrigido. A capitalizacao define quando incorporam ao principal.</span>
+        </div>
+      </div>
+      <label>Serie BCB para Juros Remuneratorios</label>
+      <select id="tipoBCB" data-testid="select-tipo-bcb">
+        <option value="25464" selected>Crédito pessoal NÃO consignado – PF – taxa MENSAL (série 25464 · % ao mês · set/2017 = 7,08%)</option>
+        <option value="20742">Crédito pessoal NÃO consignado – PF (série 20742 · vem em % ao ano)</option>
+        <option value="25470">Crédito pessoal total – PF (série 25470 · % ao mês)</option>
+        <option value="25462">Pessoas físicas – recursos livres – total (série 25462 · % ao mês)</option>
+        <option value="20714">Operações de crédito – total geral (série 20714 · % ao ano)</option>
+        <option value="4390">SELIC acumulada no mês (série 4390 · % ao mês)</option>
+        <option value="custom">Digitar o código da série…</option>
+      </select>
+      <label>A taxa da série vem em… (o cálculo sempre usa % AO MÊS)</label>
+      <select id="unidBCB" data-testid="select-unid-bcb">
+        <option value="auto" selected>Descobrir sozinho (acima de 25 = ao ano)</option>
+        <option value="am">% ao mês — usar como está</option>
+        <option value="aa_eq">% ao ano → mensal equivalente: (1+i)^(1/12) − 1</option>
+        <option value="aa_prop">% ao ano → mensal proporcional: i ÷ 12</option>
+      </select>
+      <div id="unidInfo" style="font-size:11px;color:var(--muted);margin-top:4px"></div>
+      <label>Se a busca do Banco Central falhar: cole aqui as taxas (mês + %)</label>
+      <textarea id="bcbText" placeholder="Ex.: 01/09/2017;7,08   ou   2017-09 7,08   ou o JSON da API" data-testid="textarea-bcb" style="min-height:60px"></textarea>
+      <button class="b5" id="btnConvertBCB" style="margin-top:6px" data-testid="button-converter-bcb">Usar taxas coladas</button>
+      <div id="customSerieDiv" style="display:none">
+        <label>Codigo da Serie SGS (consulte em bcb.gov.br/sgspub)</label>
+        <input id="customSerie" placeholder="ex: 20714" data-testid="input-custom-serie"/>
+      </div>
+    </div>
+
+    <h2>4) Honorários Sucumbenciais</h2>
+    <div class="box">
+      <label><input type="checkbox" id="duasLeituras" style="width:auto;margin-right:6px">Mostrar também a leitura literal do acórdão (10% sobre o valor da causa corrigido)</label>
+      <div class="row" id="vcRow">
+        <div><label>Valor atribuído à causa (R$)</label><input id="valorCausa" type="number" step="0.01" value="" placeholder="valor da inicial"/></div>
+        <div><label>Data do ajuizamento</label><input id="dataAjuiz" value="" placeholder="dd/mm/aaaa"/></div>
+      </div>
+      <label>Base de Cálculo dos Honorários</label>
+      <select id="tipoHonorarios" data-testid="select-tipo-honorarios">
+        <option value="sentenca">% sobre o valor da condenação / sentença atualizada (Cenário B)</option>
+        <option value="causa">% sobre o valor da causa atualizado (art. 85, §2º — valor da inicial corrigido)</option>
+        <option value="proveito">% sobre o proveito econômico (Cenário A − Cenário B)</option>
+        <option value="fixo">Valor fixo arbitrado, corrigido pela tabela TJMG desde a fixação</option>
+      </select>
+      <div class="row" id="honPctRow">
+        <div>
+          <label>Percentual (%)</label>
+          <input id="pctHonorarios" type="number" step="0.1" value="10" data-testid="input-honorarios"/>
+        </div>
+        <div style="display:flex;align-items:end">
+          <span style="font-size:11px;color:var(--muted);padding:8px 0">Incide sobre o valor selecionado acima</span>
+        </div>
+      </div>
+      <div id="honFixoRow" style="display:none">
+        <div class="row">
+          <div>
+            <label>Valor Fixo (R$)</label>
+            <input id="honFixoValor" type="number" step="0.01" value="2000" data-testid="input-hon-fixo-valor"/>
+          </div>
+          <div>
+            <label>Data Fixação (dd/mm/aaaa)</label>
+            <input id="honFixoData" value="17/04/2022" placeholder="17/04/2022" data-testid="input-hon-fixo-data"/>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <h2>5) Honorários Recursais</h2>
+    <div class="box">
+      <div class="row">
+        <div>
+          <label>Ativar Honorários Recursais?</label>
+          <select id="recAtivar" data-testid="select-rec-ativar">
+            <option value="nao" selected>Não</option>
+            <option value="sim">Sim</option>
+          </select>
+        </div>
+        <div>
+          <label>Valor Arbitrado (R$)</label>
+          <input id="recValor" type="number" step="0.01" value="1000" data-testid="input-rec-valor"/>
+        </div>
+      </div>
+      <div id="recDetalhes" style="display:none">
+        <div class="row">
+          <div>
+            <label>Data do Arbitramento (dd/mm/aaaa)</label>
+            <input id="recData" value="01/01/2024" placeholder="01/01/2024" data-testid="input-rec-data"/>
+          </div>
+          <div>
+            <label>Atualizar pela regra do Cenário B?</label>
+            <select id="recMesmaRegra" data-testid="select-rec-regra">
+              <option value="corr">Só correção TJMG (valor fixo arbitrado)</option>
+              <option value="sim" selected>Sim (TJMG + BCB + Mora)</option>
+              <option value="nao">Não (Valor Fixo)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <h2>6) Correção Monetária TJMG</h2>
+    <div class="box">
+      <button class="b6" id="btnTjEmb" style="width:100%;margin-bottom:8px" data-testid="button-tj-embutida">📄 Usar a TABELA OFICIAL do TJMG já embutida (válida para novembro/2026)</button>
+      <div class="hint" style="margin:0 0 6px">✨ <b>Automático:</b> monta a correção com os índices oficiais do IBGE pelo Banco Central (o mesmo critério da tabela TJMG). Não precisa colar nada — e funciona também quando o juiz abrir.</div>
+      <label>Índice de correção</label>
+      <select id="corrAuto" data-testid="select-corr-auto">
+        <option value="tjmg" selected>Igual à tabela TJMG (ICGJ = INPC, série 188)</option>
+        <option value="lei14905">Lei 14.905/2024: INPC até 08/2024 e IPCA a partir de 09/2024</option>
+        <option value="inpc">Só INPC (série 188)</option>
+        <option value="ipca">Só IPCA (série 433)</option>
+      </select>
+      <button class="b1" id="btnFetchCorr" style="margin-top:6px;width:100%" data-testid="button-buscar-correcao">Buscar correção automática (Banco Central)</button>
+      <label style="margin-top:10px">📄 Ou use a TABELA OFICIAL do TJMG (PDF da Corregedoria): abra o PDF, selecione tudo, copie e cole aqui. Pode colar bagunçado do jeito que vier (PDF, Excel, site) ou a saída do Conversor de índices</label>
+      <label>📎 Ou anexe direto o arquivo do TJMG (Excel ou PDF da Contadoria)</label>
+      <input type="file" id="tjArquivo" accept=".xlsx,.xls,.csv,.txt,.pdf" data-testid="input-tj-arquivo">
+      <textarea id="tjText" placeholder="Cole aqui o texto copiado do PDF da Corregedoria TJMG...&#10;Ex: 2017  1.520000  1.518977  1.519280 ..." data-testid="textarea-tjmg"></textarea>
+      <label>O que é essa tabela?</label>
+      <select id="tjTipo" data-testid="select-tj-tipo">
+        <option value="auto" selected>Descobrir sozinho</option>
+        <option value="fator">Fatores TJMG (Corregedoria — caem com o tempo)</option>
+        <option value="var">Variação % do mês (saída do Conversor de índices / Bacen)</option>
+        <option value="indice">Número-índice (sobe com o tempo)</option>
+      </select>
+      <label>Direção do fator (só para fatores TJMG)</label>
+      <select id="tjFormula" data-testid="select-tj-formula">
+        <option value="prevovercurr" selected>Fator anterior / atual (padrão TJMG)</option>
+        <option value="curroverprev">Fator atual / anterior</option>
+      </select>
+      <div class="row" style="margin-top:8px">
+                <button class="b5" id="btnConvertTJ" data-testid="button-converter-tjmg">Converter Fatores</button>
+        <button class="b2" id="btnClearTJ" data-testid="button-limpar-tjmg">Limpar</button>
+      </div>
+      <div id="tjmgAutoStatus" style="margin-top:6px;font-size:11px;color:#666" data-testid="text-tjmg-auto-status"></div>
+    </div>
+
+    <h2>6b) 🔌 API externa (opcional — de qualquer lugar)</h2>
+    <div class="box">
+      <div class="hint" style="margin:0 0 6px">Para quem tem uma API de índices (paga ou de outro tribunal). Use <b>{inicio}</b>, <b>{fim}</b> (dd/mm/aaaa), <b>{inicioISO}</b>, <b>{fimISO}</b> (aaaa-mm-dd) e <b>{serie}</b> no endereço. A chave fica <b>só neste aparelho</b>: não vai para o parecer nem para o link do juiz.</div>
+      <label>Endereço da API</label><input id="apiUrl" placeholder="https://api.exemplo.com.br/indices/{serie}?inicio={inicio}&fim={fim}"/>
+      <div class="row">
+        <div><label>Série / índice (vai no {serie})</label><input id="apiSerie" placeholder="ex.: TJMG, INPC, 25464"/></div>
+        <div><label>Os dados vão para…</label><select id="apiDestino"><option value="corr">Correção monetária (seção 6)</option><option value="juros">Juros (seção 3)</option></select></div>
+      </div>
+      <div class="row">
+        <div><label>Nome do cabeçalho da chave</label><input id="apiHeader" placeholder="ex.: Authorization ou x-api-key"/></div>
+        <div><label>Chave / token (só neste aparelho)</label><input id="apiChave" type="password" placeholder="(opcional)"/></div>
+      </div>
+      <button class="b3" id="btnApiExt" style="width:100%;margin-top:8px">🔌 Buscar pela API externa</button>
+      <div id="apiInfo" style="font-size:11px;color:var(--muted);margin-top:4px"></div>
+    </div>
+
+    <h2>7) Critérios Técnicos (texto do parecer)</h2>
+    <div class="box">
+      <label>Metodologia / Critérios (aparece no parecer, editável)</label>
+      <textarea id="criteriosTexto" style="min-height:120px;font-family:'Times New Roman',serif;font-size:12px" data-testid="textarea-criterios">METODOLOGIA: Este memorial observa estritamente o v. acórdão, aplicando a Correção Monetária pela tabela da CGJ/TJMG e Juros Remuneratórios pela Taxa Média de Mercado (Série BCB). O diferencial determinante desta liquidação é a aplicação da CAPITALIZAÇÃO ANUAL (Art. 591 do Código Civil), expurgando o anatocismo mensal abusivo praticado pelo banco, acrescido de juros de mora de 1% ao mês e multa de mora conforme Art. 523 do CPC.</textarea>
+      <label>Fontes e Links (aparecem no parecer para dar credibilidade)</label>
+      <textarea id="fontesTexto" style="min-height:80px;font-family:'Times New Roman',serif;font-size:12px" data-testid="textarea-fontes">• Correção monetária: Tabela de Atualização Monetária — Corregedoria-Geral de Justiça do Estado de Minas Gerais (https://www.tjmg.jus.br/portal-tjmg/processos/tabela-de-atualizacao-monetaria/)
+• Juros remuneratórios: Sistema Gerenciador de Séries Temporais (SGS) — Banco Central do Brasil (https://www3.bcb.gov.br/sgspub/)
+• Art. 591 do Código Civil: Capitalização anual de juros
+• Art. 523 do CPC: Multa de 10% por não cumprimento espontâneo</textarea>
+    </div>
+
+    <h2>7b) Cálculo apresentado pelo banco (para rebater)</h2>
+    <div class="box">
+      <label><input type="checkbox" id="analiseBanco" style="width:auto;margin-right:6px">Incluir no parecer a análise do cálculo do banco</label>
+      <div class="row">
+        <div><label>Valor apresentado pelo banco (R$)</label><input id="bancoValor" type="number" step="0.01" value=""/></div>
+        <div><label>Mês de referência (mm/aaaa)</label><input id="bancoMes" value="" placeholder="mm/aaaa"/></div>
+      </div>
+      <label>Taxa usada pelo banco (% ao mês) e forma</label>
+      <div class="row">
+        <div><input id="bancoTaxa" type="number" step="0.01" value=""/></div>
+        <div><select id="bancoForma"><option value="simples_fixa" selected>Juros simples, taxa fixa, sem capitalização anual</option><option value="outra">Outra (descrever no texto)</option></select></div>
+      </div>
+      <label>Origem / documento</label>
+      <input id="bancoDoc" value="" placeholder="ex.: planilha juntada pela parte contrária em dd/mm/aaaa — ID ..."/>
+    </div>
+
+    <h2>8) Calcular</h2>
+    <div class="box">
+      <div class="row">
+        <button class="b1" id="btnCalcular" style="padding:12px;font-size:12px" data-testid="button-calcular">Calcular Auditoria</button>
+        <button class="b3" id="btnFetchBCB" data-testid="button-buscar-bcb">Buscar Taxas BCB</button>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <button class="b4" id="btnExportWord" data-testid="button-export-word">Exportar Word</button>
+        <button class="b4" onclick="window.print()" data-testid="button-imprimir">Imprimir PDF</button>
+      </div>
+      <div style="margin-top:8px">
+        <button class="b3" id="btnCompartilhar" data-testid="button-compartilhar">Baixar parecer (HTML) para o Juiz</button>
+        <div id="linkCompartilhado" style="margin-top:6px;font-size:11px;display:none" data-testid="text-link-compartilhado">
+          <input id="linkInput" readonly style="background:#fff;color:#111;font-size:11px;cursor:text" data-testid="input-link"/>
+          <button class="b4" style="margin-top:4px;width:auto" id="btnCopyLink" data-testid="button-copy-link">Copiar Link</button>
+        </div>
+      </div>
+    </div>
+
+    <h2>Status</h2>
+    <div class="status" id="status" data-testid="text-status">Pronto. Preencha os dados e clique em "Calcular Auditoria".</div>
+  </div>
+
+  <div class="right">
+    <div class="topbar">
+      <div style="font-weight:700;font-size:13px;font-family:system-ui">Parecer de Auditoria Financeira</div>
+      <div class="btns">
+        <button class="b4" id="btnCopyAll" data-testid="button-copiar">Copiar Texto</button>
+        <button class="b4" id="btnCopyHtml" data-testid="button-copiar-html">Copiar HTML</button>
+      </div>
+    </div>
+    <div class="paper" id="parecer" data-testid="div-parecer">
+      <div style="text-align:center;color:#999;padding:40px 0;font-family:system-ui;font-size:13px">
+        Preencha os dados à esquerda e clique em <b>Calcular Auditoria</b> para gerar o parecer.
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+// Tabela oficial TJMG (Contadoria Judicial de BH — fatores ICGJ/TJMG, expurgada), "Tabela Válida para: NOVEMBRO DE 2026", meses de 2010 em diante.
+var TJMG_EMBUTIDA = {"2010-01":2.5476799,"2010-02":2.5254556,"2010-03":2.5079003,"2010-04":2.49022,"2010-05":2.4721728,"2010-06":2.4615889,"2010-07":2.4643004,"2010-08":2.4660254,"2010-09":2.4677527,"2010-10":2.4544981,"2010-11":2.4321233,"2010-12":2.4073278,"2011-01":2.3929692,"2011-02":2.3706849,"2011-03":2.3579524,"2011-04":2.3424919,"2011-05":2.3257466,"2011-06":2.312565,"2011-07":2.3074876,"2011-08":2.3074876,"2011-09":2.2978371,"2011-10":2.2875428,"2011-11":2.2802468,"2011-12":2.2673224,"2012-01":2.2558187,"2012-02":2.2443716,"2012-03":2.2356528,"2012-04":2.2316349,"2012-05":2.2174442,"2012-06":2.2053147,"2012-07":2.1995954,"2012-08":2.1901778,"2012-09":2.1803669,"2012-10":2.1667172,"2012-11":2.1514408,"2012-12":2.1398856,"2013-01":2.1241665,"2013-02":2.1048028,"2013-03":2.0939152,"2013-04":2.0814256,"2013-05":2.0692165,"2013-06":2.0620003,"2013-07":2.0562429,"2013-08":2.0589198,"2013-09":2.0556303,"2013-10":2.0500953,"2013-11":2.0376649,"2013-12":2.0267208,"2014-01":2.0122326,"2014-02":1.999635,"2014-03":1.9869183,"2014-04":1.9707581,"2014-05":1.9555058,"2014-06":1.9438427,"2014-07":1.9388022,"2014-08":1.9362848,"2014-09":1.932806,"2014-10":1.9233806,"2014-11":1.9160993,"2014-12":1.9059984,"2015-01":1.8942533,"2015-02":1.8666279,"2015-03":1.8452228,"2015-04":1.8177749,"2015-05":1.8049596,"2015-06":1.7872658,"2015-07":1.7736081,"2015-08":1.7633808,"2015-09":1.7589835,"2015-10":1.7500583,"2015-11":1.7366862,"2015-12":1.7176203,"2016-01":1.7022999,"2016-02":1.6769768,"2016-03":1.661196,"2016-04":1.6539192,"2016-05":1.6434003,"2016-06":1.6274514,"2016-07":1.6198383,"2016-08":1.6095378,"2016-09":1.6045631,"2016-10":1.6032801,"2016-11":1.6005601,"2016-12":1.5994397,"2017-01":1.5972037,"2017-02":1.590524,"2017-03":1.5867152,"2017-04":1.5816543,"2017-05":1.5803902,"2017-06":1.5747214,"2017-07":1.5794596,"2017-08":1.5767794,"2017-09":1.5772526,"2017-10":1.5775679,"2017-11":1.5717522,"2017-12":1.5689281,"2018-01":1.5648596,"2018-02":1.5612689,"2018-03":1.5584629,"2018-04":1.5573733,"2018-05":1.554109,"2018-06":1.5474555,"2018-07":1.5256387,"2018-08":1.5218344,"2018-09":1.5218344,"2018-10":1.5172821,"2018-11":1.5112373,"2018-12":1.5150254,"2019-01":1.5129068,"2019-02":1.5074798,"2019-03":1.4993838,"2019-04":1.487926,"2019-05":1.479052,"2019-06":1.4768367,"2019-07":1.4766894,"2019-08":1.4752137,"2019-09":1.4734459,"2019-10":1.4741826,"2019-11":1.4735938,"2019-12":1.4656788,"2020-01":1.4480129,"2020-02":1.4452668,"2020-03":1.442814,"2020-04":1.4402221,"2020-05":1.4435417,"2020-06":1.4471597,"2020-07":1.4428313,"2020-08":1.4365103,"2020-09":1.4313575,"2020-10":1.4190123,"2020-11":1.4064943,"2020-12":1.3932589,"2021-01":1.3732094,"2021-02":1.3695124,"2021-03":1.3583735,"2021-04":1.3467917,"2021-05":1.3416927,"2021-06":1.3289347,"2021-07":1.3210091,"2021-08":1.3076704,"2021-09":1.2962637,"2021-10":1.2808925,"2021-11":1.2662051,"2021-12":1.2556568,"2022-01":1.2465571,"2022-02":1.238261,"2022-03":1.2260011,"2022-04":1.2053889,"2022-05":1.1929817,"2022-06":1.1876377,"2022-07":1.1803195,"2022-08":1.187444,"2022-09":1.1911363,"2022-10":1.1949607,"2022-11":1.1893705,"2022-12":1.1848682,"2023-01":1.1767484,"2023-02":1.1713598,"2023-03":1.1624095,"2023-04":1.1550176,"2023-05":1.1489284,"2023-06":1.1448068,"2023-07":1.1459526,"2023-08":1.1469851,"2023-09":1.1446957,"2023-10":1.1434384,"2023-11":1.1420675,"2023-12":1.1409264,"2024-01":1.1346857,"2024-02":1.1282548,"2024-03":1.1191895,"2024-04":1.1170668,"2024-05":1.1129492,"2024-06":1.1078529,"2024-07":1.1050904,"2024-08":1.1022246,"2024-09":1.1037696,"2024-10":1.0984967,"2024-11":1.0918369,"2024-12":1.0882452,"2025-01":1.0830469,"2025-02":1.0830469,"2025-03":1.0672515,"2025-04":1.0618363,"2025-05":1.0567637,"2025-06":1.0530776,"2025-07":1.0506614,"2025-08":1.0484595,"2025-09":1.0506662,"2025-10":1.0452308,"2025-11":1.0449173,"2025-12":1.0446039,"2026-01":1.0424148,"2026-02":1.0383653,"2026-03":1.0325828,"2026-04":1.0232711,"2026-05":1.0150491,"2026-06":1.0084939,"2026-07":1.0070839,"2026-08":1.0071847,"2026-09":1.010418,"2026-10":1.0022,"2026-11":1.0};
+var TJMG_EMBUTIDA_NOME = "Tabela de Fatores de Atualização Monetária da Corregedoria-Geral de Justiça/TJMG (ICGJ, expurgada), válida para novembro de 2026";
+var TJMG_INDEX = {};
+var TJ_PCT = {}; // correção do mês em fração (quando a tabela é % ou índice)
+var BCB_INDEX = {};
+var BCB_RAW = {}; // como veio do Banco Central (pode ser % ao ano)
+var UNID_DESC = "";
+var CALC_RESULT = null;
+
+var $ = function(id){ return document.getElementById(id); };
+
+function setClock(){ $("clock").textContent = new Date().toLocaleString("pt-BR"); }
+setInterval(setClock,1000); setClock();
+
+function ov(on,msg,sub){
+  $("ov").style.display = on ? "flex" : "none";
+  if(msg) $("ovMsg").textContent = msg;
+  if(sub) $("ovSub").textContent = sub;
+}
+function log(s){ $("status").textContent = s; }
+function avisar(s){ log("⚠️ " + s); try{ $("status").scrollIntoView({block:"nearest"}); }catch(e){} }
+function fmtBRL(n){ return (Number(n)||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"}); }
+function fmtPct(n){ return (Number(n)||0).toFixed(2).replace(".",",") + "%"; }
+function fmtFator(n){ return (Number(n)||0).toFixed(6).replace(".",","); }
+
+function toNum(x){
+  if(x==null) return 0;
+  if(typeof x==="number") return x;
+  var s = String(x).trim().replace(/[^\d,.\-]/g,"");
+  if(!s) return 0;
+  if(s.includes(",")) s = s.replace(/\./g,"").replace(",",".");
+  var n = Number(s);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function parseDateBR(str){
+  var m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec((str||"").trim());
+  if(!m) return null;
+  return new Date(+m[3], +m[2]-1, +m[1]);
+}
+
+function dateToYM(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"); }
+
+function listMonths(d1,d2){
+  var out=[], d=new Date(d1.getTime()); d.setDate(1);
+  var e=new Date(d2.getTime()); e.setDate(1);
+  while(d<=e){ out.push(dateToYM(d)); d.setMonth(d.getMonth()+1); }
+  return out;
+}
+
+function ymToLabel(ym){
+  var p=ym.split("-");
+  var meses=["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+  return meses[parseInt(p[1])-1]+"/"+p[0];
+}
+
+
+var MESES_N = {jan:1,fev:2,feb:2,mar:3,abr:4,apr:4,mai:5,may:5,jun:6,jul:7,ago:8,aug:8,set:9,sep:9,out:10,oct:10,nov:11,dez:12,dec:12};
+function mesNome(t){ return MESES_N[String(t).toLowerCase().normalize("NFD").replace(/[^a-z]/g,"").slice(0,3)]; }
+function numU(x){ var s=String(x).replace(/[%\sR$]/g,""); if(!/^-?[\d.,]+$/.test(s)||!/\d/.test(s)) return null;
+  var v=s.lastIndexOf(","), p=s.lastIndexOf(".");
+  if(v>-1&&p>-1) s = v>p ? s.replace(/\./g,"").replace(",",".") : s.replace(/,/g,"");
+  else if(v>-1) s=s.replace(",",".");
+  var n=parseFloat(s); return isNaN(n)?null:n; }
+function anoU(a){ a=+a; return a<100 ? (a>50?1900+a:2000+a) : a; }
+// Lê qualquer tabela de meses: matriz (ANO + valores), "dd/mm/aaaa valor", "mm/aaaa", "aaaa-mm", "jan/2020", JSON do Bacen
+function lerTabelaMeses(texto){
+  var mat = {}, nMat = 0, lin = {}, nLin = 0;
+  try { var j = JSON.parse(texto); if(Array.isArray(j)) texto = j.map(function(x){ return (x.data||x.date||x.mes)+";"+(x.valor!=null?x.valor:x.value); }).join("\n"); } catch(e){}
+  var linhas = String(texto).replace(/ /g," ").split(/\r?\n/);
+  var primeiraMat = true;
+  for(var i=0;i<linhas.length;i++){
+    var l = linhas[i].trim(); if(!l) continue;
+    var tk = l.split(/\t|;|\||\s+/).filter(Boolean);
+    // 1) MATRIZ do TJMG: ANO + até 12 fatores (+ ANO repetido no fim)
+    if(/^(19|20)\d\d$/.test(tk[0]) && tk.length>=2){
+      var resto = tk.slice(1); if(resto[resto.length-1] === tk[0]) resto.pop();
+      var vals = resto.map(numU), ok = vals.length && vals.every(function(v,ix){ return v!==null && /[.,]/.test(resto[ix]); });
+      if(ok){
+        var desloc = (vals.length < 12 && primeiraMat) ? 12 - vals.length : 0; // 1º ano incompleto (ex.: 1964 começa em outubro)
+        for(var m=0;m<vals.length && m<12;m++){ mat[tk[0]+"-"+String(m+1+desloc).padStart(2,"0")] = vals[m]; nMat++; }
+        primeiraMat = false; continue;
+      }
+    }
+    // 2) LINHA: "2024 Setembro 1,1037696" (Excel do TJMG), "dd/mm/aaaa valor", "mm/aaaa", "aaaa-mm", "jan/2024"
+    var r, y=null, mm=null;
+    if((r=l.match(/\b((?:19|20)\d\d)\b[\s;,\t]+([A-Za-zçÇ]{3,})/)) && mesNome(r[2])){ y=+r[1]; mm=mesNome(r[2]); }
+    else if((r=l.match(/\b(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})\b/))){ mm=+r[2]; y=anoU(r[3]); }
+    else if((r=l.match(/\b((?:19|20)\d\d)[\/.-](\d{1,2})\b/))){ y=+r[1]; mm=+r[2]; }
+    else if((r=l.match(/\b(\d{1,2})[\/.-]((?:19|20)\d\d)\b/))){ mm=+r[1]; y=+r[2]; }
+    else if((r=l.match(/([A-Za-zçÇ]{3,})\.?[\s\/.-]*(?:de\s+)?(\d{4}|\d{2})\b/)) && mesNome(r[1])){ mm=mesNome(r[1]); y=anoU(r[2]); }
+    if(!r||!mm||mm>12) continue;
+    var rest = l.replace(r[0]," ").split(/[\s;|\t]+/).map(numU).filter(function(v){return v!==null;});
+    if(rest.length){ lin[y+"-"+String(mm).padStart(2,"0")] = rest[rest.length-1]; nLin++; }
+  }
+  // se achou a matriz, ignora as outras linhas (cabeçalho "Out-2026 0,22%", notas dos expurgos etc.)
+  var out = nMat >= 12 ? mat : (nLin >= nMat ? lin : mat), n = nMat >= 12 ? nMat : Math.max(nLin, nMat);
+  // PDF copiado no celular: um número por linha
+  if(n < 12){
+    var tks = String(texto).replace(/ /g," ").split(/\s+/).filter(Boolean), ano = null, mes = 0, out2 = {}, n2 = 0;
+    for(var t=0;t<tks.length;t++){
+      if(/^(19|20)\d\d$/.test(tks[t])){ if(tks[t] !== ano){ ano = tks[t]; mes = 0; } continue; }
+      if(!/^\d+,\d{4,}$/.test(tks[t])) continue; // só fatores no padrão do TJMG (vírgula + 4 ou mais casas)
+      var v = numU(tks[t]);
+      if(ano && v !== null && mes < 12){ mes++; out2[ano+"-"+String(mes).padStart(2,"0")] = v; n2++; }
+    }
+    // 1º ano incompleto (ex.: 1964 começa em outubro): alinha à direita
+    var anos = Object.keys(out2).map(function(k){ return k.slice(0,4); }).sort();
+    if(anos.length){ var a0 = anos[0], q = anos.filter(function(x){ return x===a0; }).length;
+      if(q < 12){ var tmp = {}; for(var z=1; z<=q; z++) tmp[a0+"-"+String(z+12-q).padStart(2,"0")] = out2[a0+"-"+String(z).padStart(2,"0")];
+        for(var z2=1; z2<=q; z2++) delete out2[a0+"-"+String(z2).padStart(2,"0")]; for(var kk in tmp) out2[kk] = tmp[kk]; } }
+    if(n2 > n){ out = out2; n = n2; }
+  }
+  var col = lerColunasPorMes(texto); if(col.total > n){ out = col.mapa; n = col.total; }
+  return {mapa: out, total: n};
+}
+// Tabela TJMG copiada por COLUNA (ex.: extrator do Cálculo Jurídico): "ANO 1964 1965 …" e depois "DEZ v1964 v1965 …", "NOV …"
+function lerColunasPorMes(texto){
+  var MES3 = {JAN:1,FEV:2,MAR:3,ABR:4,MAI:5,JUN:6,JUL:7,AGO:8,SET:9,OUT:10,NOV:11,DEZ:12};
+  var tks = String(texto).replace(/ /g," ").split(/\s+/).filter(Boolean);
+  var ref = String(texto).match(/V[áa]lida\s+para:?\s*([A-Za-zçÇ]+)\s+(?:DE\s+)?(\d{4})/i), refY = null, refM = null;
+  if(ref){ var mm = MES3[ref[1].toUpperCase().normalize("NFD").replace(/[^A-Z]/g,"").slice(0,3)]; if(mm){ refY = +ref[2]; refM = mm; } }
+  var ehNum = function(t){ return /^\d+,\d{4,}$/.test(t); };
+  var out = {}, n = 0, anos = null, i = 0;
+  while(i < tks.length){
+    var t = tks[i].toUpperCase();
+    if(t === "ANO"){ anos = []; i++; while(i < tks.length && /^(19|20)\d\d$/.test(tks[i])){ anos.push(+tks[i]); i++; } continue; }
+    var m = MES3[t];
+    if(anos && anos.length && m && tks[i].length === 3){
+      var j = i + 1, pulos = 0, vals = [];
+      while(j < tks.length && !ehNum(tks[j]) && pulos < 3 && !MES3[tks[j].toUpperCase()] && tks[j].toUpperCase() !== "ANO"){ j++; pulos++; }
+      while(j < tks.length && ehNum(tks[j])){ vals.push(tks[j]); j++; }
+      if(vals.length){
+        var ys = anos.slice();
+        if(vals.length === ys.length - 1){
+          var ultimoMes = refM ? (refM === 1 ? 12 : refM - 1) : null, ultimoAno = refM ? (refM === 1 ? refY - 1 : refY) : null;
+          if(ultimoAno && ys[ys.length-1] === ultimoAno && m > ultimoMes) ys.pop(); else ys.shift();
+        }
+        if(vals.length === ys.length){ for(var k=0;k<ys.length;k++){ out[ys[k]+"-"+String(m).padStart(2,"0")] = parseFloat(vals[k].replace(",", ".")); n++; } }
+      }
+      i = j; continue;
+    }
+    i++;
+  }
+  return {mapa: out, total: n};
+}
+
+function tipoTabela(vals){
+  if(vals.some(function(x){return x<=0;})) return "var";
+  var sobe=0, desce=0; for(var i=1;i<vals.length;i++){ if(vals[i]>vals[i-1]) sobe++; else if(vals[i]<vals[i-1]) desce++; }
+  var t=vals.length-1, grande=vals.every(function(x){return x>0.9;});
+  if(vals.length>=3 && grande && desce>=t*0.9) return "fator";
+  if(vals.length>=24 && desce>=t*0.75) return "fator"; // tabela longa do TJMG (com trocas de moeda no meio)
+  if(vals.length>=3 && grande && sobe>=t*0.9 && vals.some(function(x){return x>25;})) return "indice";
+  if(vals.every(function(x){return Math.abs(x)<25;})) return "var";
+  return sobe>=t/2 ? "indice" : "fator";
+}
+
+$("unidBCB").addEventListener("change", aplicarUnidade);
+$("tipoBCB").addEventListener("change", function(){ BCB_RAW = {}; BCB_INDEX = {}; $("unidInfo").textContent = ""; });
+$("tipoBCB").addEventListener("change", function(){
+  $("customSerieDiv").style.display = this.value === "custom" ? "block" : "none";
+});
+
+$("tipoHonorarios").addEventListener("change", function(){
+  var v = this.value;
+  $("honPctRow").style.display = (v === "fixo") ? "none" : "grid";
+  $("honFixoRow").style.display = (v === "fixo") ? "block" : "none";
+});
+
+$("recAtivar").addEventListener("change", function(){
+  $("recDetalhes").style.display = this.value === "sim" ? "block" : "none";
+});
+
+$("btnClearTJ").addEventListener("click", function(){ $("tjText").value = ""; TJMG_INDEX = {}; log("TJMG limpo."); });
+
+$("btnConvertTJ").addEventListener("click", function(){
+  var raw = $("tjText").value;
+  if(!raw.trim()) return avisar("Cole a tabela TJMG (ou a saída do Conversor de índices) no campo da seção 6.");
+  var r = lerTabelaMeses(raw);
+  var chaves = Object.keys(r.mapa).sort();
+  if(!chaves.length) return avisar("Não reconheci nenhum mês nessa tabela. Confira se cada linha tem o ano/mês e o número.");
+  var vals = chaves.map(function(k){ return r.mapa[k]; });
+  var tipo = $("tjTipo").value; if(tipo==="auto") tipo = tipoTabela(vals);
+  TJMG_INDEX = {}; TJ_PCT = {}; CORR_FONTE = "";
+  if(tipo==="fator"){ chaves.forEach(function(k){ TJMG_INDEX[k] = r.mapa[k]; });
+    // "Tabela Válida para: NOVEMBRO DE 2026" → nesse mês o fator é 1 (é a data de referência da tabela)
+    var vp = raw.match(/V[áa]lida\s+para:?\s*([A-Za-zçÇ]+)\s+(?:DE\s+)?(\d{4})/i);
+    if(vp && mesNome(vp[1])){ var kRef = vp[2] + "-" + String(mesNome(vp[1])).padStart(2,"0"); if(TJMG_INDEX[kRef] == null){ TJMG_INDEX[kRef] = 1; chaves.push(kRef); } }
+  }
+  else if(tipo==="var"){ chaves.forEach(function(k){ TJ_PCT[k] = r.mapa[k]/100; }); }
+  else { for(var i=1;i<chaves.length;i++){ TJ_PCT[chaves[i]] = r.mapa[chaves[i]]/r.mapa[chaves[i-1]] - 1; } }
+  var nomes = {fator:"fatores TJMG", var:"variação % do mês", indice:"número-índice"};
+  log("✅ Correção carregada: " + chaves.length + " meses (" + chaves[0] + " a " + chaves[chaves.length-1] + "), lida como " + nomes[tipo] + ".");
+});
+
+$("tjArquivo").addEventListener("change", function(ev){
+  var f = ev.target.files[0]; if(!f) return;
+  log("Lendo " + f.name + "...");
+  var fim = function(txt){ $("tjText").value = txt; $("tjTipo").value = "fator"; $("btnConvertTJ").click(); };
+  if(/\.xlsx?$/i.test(f.name)){
+    if(!window.XLSX) return avisar("Para ler Excel precisa de internet na 1ª vez. Ou abra o Excel, copie as colunas e cole no campo.");
+    f.arrayBuffer().then(function(buf){ var wb = XLSX.read(buf); fim(XLSX.utils.sheet_to_csv(wb.Sheets[wb.SheetNames[0]], {FS:"\t", rawNumbers:true})); })
+      .catch(function(e){ avisar("Não consegui ler o Excel: " + e.message); });
+  } else if(/\.pdf$/i.test(f.name)){
+    var lib = window.pdfjsLib; if(!lib) return avisar("Para ler PDF precisa de internet na 1ª vez. Ou copie o texto do PDF e cole no campo.");
+    lib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+    f.arrayBuffer().then(function(buf){ return lib.getDocument({data: buf}).promise; }).then(function(pdf){
+      var pags = []; for(var i=1;i<=pdf.numPages;i++) pags.push(i);
+      return Promise.all(pags.map(function(n){ return pdf.getPage(n).then(function(pg){ return pg.getTextContent(); }).then(function(tc){
+        var lin = {}; tc.items.forEach(function(it){ var yy = Math.round(it.transform[5]); (lin[yy] = lin[yy] || []).push({x: it.transform[4], s: it.str}); });
+        return Object.keys(lin).sort(function(a,b){ return b-a; }).map(function(k){ return lin[k].sort(function(a,b){ return a.x-b.x; }).map(function(o){ return o.s; }).join("  "); }).join("\n");
+      }); }));
+    }).then(function(txts){ fim(txts.join("\n")); }).catch(function(e){ avisar("Não consegui ler o PDF: " + e.message + ". Copie o texto e cole no campo."); });
+  } else { f.text().then(fim); }
+});
+
+$("btnConvertBCB").addEventListener("click", function(){
+  var raw = $("bcbText").value;
+  if(!raw.trim()) return avisar("Cole as taxas do Banco Central no campo da seção 3.");
+  var r = lerTabelaMeses(raw); var ch = Object.keys(r.mapa);
+  if(!ch.length) return avisar("Não reconheci nenhum mês nas taxas coladas.");
+  BCB_RAW = {}; ch.forEach(function(k){ BCB_RAW[k] = r.mapa[k]; }); aplicarUnidade();
+  log("✅ Taxas BCB coladas: " + ch.length + " meses. " + UNID_DESC + ".");
+});
+
+$("btnFetchBCB").addEventListener("click", fetchBCB);
+
+function buscarSerie(code, dIni, dFim){
+  var fmt = function(d){ return String(d.getDate()).padStart(2,"0")+"/"+String(d.getMonth()+1).padStart(2,"0")+"/"+d.getFullYear(); };
+  var partes = [], ini = new Date(dIni.getFullYear(), dIni.getMonth(), 1);
+  while(ini <= dFim){ var fim = new Date(ini.getFullYear()+9, ini.getMonth(), ini.getDate()); if(fim > dFim) fim = new Date(dFim.getTime()); partes.push([fmt(ini), fmt(fim)]); ini = new Date(fim.getFullYear(), fim.getMonth(), fim.getDate()+1); }
+  var mapa = {};
+  return partes.reduce(function(p, par){
+    return p.then(function(){
+      return fetch("https://api.bcb.gov.br/dados/serie/bcdata.sgs."+code+"/dados?formato=json&dataInicial="+par[0]+"&dataFinal="+par[1])
+        .then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); })
+        .then(function(data){ if(!Array.isArray(data)) throw new Error("resposta inesperada do Banco Central");
+          data.forEach(function(item){ var q = item.data.split("/"); mapa[q[2]+"-"+q[1]] = toNum(item.valor); }); });
+    });
+  }, Promise.resolve()).then(function(){ return mapa; });
+}
+var CORR_FONTE = "";
+function aplicarUnidade(){
+  var ks = Object.keys(BCB_RAW).sort(); BCB_INDEX = {}; UNID_DESC = "";
+  if(!ks.length){ $("unidInfo").textContent = ""; return; }
+  var u = $("unidBCB").value, vals = ks.map(function(k){ return BCB_RAW[k]; });
+  if(u === "auto"){ var med = vals.reduce(function(a,b){return a+b;},0)/vals.length; u = med > 25 ? "aa_eq" : "am"; }
+  ks.forEach(function(k){ var v = BCB_RAW[k];
+    BCB_INDEX[k] = u === "aa_eq" ? (Math.pow(1 + v/100, 1/12) - 1) * 100 : u === "aa_prop" ? v/12 : v; });
+  UNID_DESC = {am:"taxa da série já em % ao mês", aa_eq:"taxa da série em % ao ano, convertida para a taxa mensal equivalente [(1+i)^(1/12) − 1]", aa_prop:"taxa da série em % ao ano, convertida para a taxa mensal proporcional (i ÷ 12)"}[u];
+  var k0 = ks[0]; $("unidInfo").textContent = "Ex.: " + k0 + " veio " + BCB_RAW[k0].toFixed(2).replace(".",",") + "% → usado " + BCB_INDEX[k0].toFixed(4).replace(".",",") + "% ao mês (" + UNID_DESC + ").";
+}
+function fetchCorrecao(){
+  var dIni = parseDateBR($("dataInicio").value), dFim = parseDateBR($("dataFim").value);
+  if(!dIni || !dFim){ avisar("Preencha as datas de início e fim (dd/mm/aaaa)."); return Promise.resolve(false); }
+  var modo = $("corrAuto").value;
+  ov(true, "Buscando índices de correção...", "INPC/IPCA no Banco Central");
+  return Promise.all([ modo==="ipca" ? Promise.resolve({}) : buscarSerie(188, dIni, dFim), (modo==="inpc" || modo==="tjmg") ? Promise.resolve({}) : buscarSerie(433, dIni, dFim) ])
+    .then(function(res){
+      var inpc = res[0], ipca = res[1]; TJ_PCT = {}; TJMG_INDEX = {};
+      listMonths(dIni, dFim).forEach(function(ym){
+        var usaIpca = modo==="ipca" || (modo==="lei14905" && ym >= "2024-09");
+        var v = usaIpca ? ipca[ym] : inpc[ym];
+        if(v != null) TJ_PCT[ym] = v/100;
+      });
+      CORR_FONTE = {tjmg:"INPC/IBGE (SGS 188) — o mesmo índice da tabela ICGJ/TJMG", lei14905:"INPC/IBGE (SGS 188) até 08/2024 e IPCA/IBGE (SGS 433) a partir de 09/2024, conforme Lei 14.905/2024", inpc:"INPC/IBGE (SGS 188)", ipca:"IPCA/IBGE (SGS 433)"}[modo];
+      ov(false); log("✅ Correção automática carregada: " + Object.keys(TJ_PCT).length + " meses — " + CORR_FONTE + "."); return true;
+    }).catch(function(e){ ov(false); avisar("A busca da correção no Banco Central falhou ("+e.message+"). Cole a tabela TJMG abaixo."); return false; });
+}
+
+function fetchBCB(){
+  var tipo = $("tipoBCB").value;
+  var code = tipo === "custom" ? ($("customSerie").value||"").trim() : tipo;
+  if(!code){ avisar("Selecione ou informe a série BCB."); return Promise.resolve(false); }
+  var dIni = parseDateBR($("dataInicio").value);
+  var dFim = parseDateBR($("dataFim").value);
+  if(!dIni || !dFim){ avisar("Preencha as datas de início e fim (dd/mm/aaaa)."); return Promise.resolve(false); }
+  var fmt = function(d){ return String(d.getDate()).padStart(2,"0")+"/"+String(d.getMonth()+1).padStart(2,"0")+"/"+d.getFullYear(); };
+  var partes = [], ini = new Date(dIni.getTime());
+  while(ini <= dFim){ var fim = new Date(ini.getFullYear()+9, ini.getMonth(), ini.getDate()); if(fim > dFim) fim = new Date(dFim.getTime()); partes.push([fmt(ini), fmt(fim)]); ini = new Date(fim.getFullYear(), fim.getMonth(), fim.getDate()+1); }
+  ov(true, "Buscando taxas BCB (série "+code+")...", "Conectando ao Banco Central...");
+  var count = 0; BCB_RAW = {};
+  return partes.reduce(function(p, par){
+    return p.then(function(){
+      return fetch("https://api.bcb.gov.br/dados/serie/bcdata.sgs."+code+"/dados?formato=json&dataInicial="+par[0]+"&dataFinal="+par[1])
+        .then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); })
+        .then(function(data){ if(!Array.isArray(data)) throw new Error("resposta inesperada do Banco Central");
+          data.forEach(function(item){ var q = item.data.split("/"); BCB_RAW[q[2]+"-"+q[1]] = toNum(item.valor); count++; }); });
+    });
+  }, Promise.resolve()).then(function(){
+    ov(false); aplicarUnidade(); log("✅ BCB série "+code+" carregada: "+count+" meses. " + UNID_DESC + "."); return true;
+  }).catch(function(e){
+    ov(false); avisar("A busca no Banco Central falhou ("+e.message+"). Abra a série no site do Bacen (www3.bcb.gov.br/sgspub), copie e cole no campo \"Se a busca do Banco Central falhar\" da seção 3."); return false;
+  });
+}
+
+$("btnFetchCorr").addEventListener("click", fetchCorrecao);
+// ===== 🔌 API externa genérica: entende JSON (lista de {data, valor} em vários nomes, ou [data, valor]) e texto/CSV =====
+(function(){
+  var campos = ["apiUrl","apiSerie","apiDestino","apiHeader"];
+  try { campos.forEach(function(c){ var v = localStorage.getItem("auditoria:"+c); if(v != null) $(c).value = v; }); var k = localStorage.getItem("auditoria:apiChave"); if(k) $("apiChave").value = k; } catch(e){}
+  var guardar = function(){ try { campos.forEach(function(c){ localStorage.setItem("auditoria:"+c, $(c).value); }); localStorage.setItem("auditoria:apiChave", $("apiChave").value); } catch(e){} };
+  function paraLinhas(dado){
+    if(typeof dado === "string") return dado;
+    var lista = Array.isArray(dado) ? dado : null;
+    if(!lista && dado && typeof dado === "object"){ var ks = Object.keys(dado); for(var i=0;i<ks.length;i++){ if(Array.isArray(dado[ks[i]])){ lista = dado[ks[i]]; break; } } }
+    if(!lista) return "";
+    return lista.map(function(it){
+      if(Array.isArray(it)) return it[0] + ";" + it[1];
+      if(!it || typeof it !== "object") return "";
+      var kd = Object.keys(it).find(function(k){ return /^(data|date|mes|m[eê]s|competencia|compet[eê]ncia|periodo|per[ií]odo|referencia|ref)$/i.test(k); });
+      var kv = Object.keys(it).find(function(k){ return /^(valor|value|indice|[ií]ndice|fator|taxa|percentual|variacao|varia[cç][aã]o)$/i.test(k); });
+      return kd && kv ? it[kd] + ";" + it[kv] : "";
+    }).filter(Boolean).join("\n");
+  }
+  $("btnApiExt").addEventListener("click", function(){
+    guardar();
+    var url = $("apiUrl").value.trim(); if(!/^https:\/\//i.test(url)) return avisar("Coloque o endereço da API (começando com https://).");
+    var dI = parseDateBR($("dataInicio").value), dF = parseDateBR($("dataFim").value); if(!dI || !dF) return avisar("Preencha as datas de início e fim.");
+    var iso = function(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); };
+    url = url.replace(/\{inicio\}/g, $("dataInicio").value).replace(/\{fim\}/g, $("dataFim").value).replace(/\{inicioISO\}/g, iso(dI)).replace(/\{fimISO\}/g, iso(dF)).replace(/\{serie\}/g, encodeURIComponent($("apiSerie").value.trim()));
+    var h = {}; if($("apiHeader").value.trim() && $("apiChave").value) h[$("apiHeader").value.trim()] = $("apiChave").value;
+    var host = url.replace(/^https:\/\//i,"").split("/")[0];
+    ov(true, "Buscando na API externa...", host);
+    fetch(url, {headers: h}).then(function(r){ if(!r.ok) throw new Error("HTTP " + r.status); return r.text(); }).then(function(t){
+      var dado = t; try { dado = JSON.parse(t); } catch(e){}
+      var linhas = paraLinhas(dado); if(!linhas.trim()) throw new Error("não reconheci os dados que a API mandou");
+      ov(false);
+      if($("apiDestino").value === "corr"){ $("tjText").value = linhas; $("btnConvertTJ").click(); CORR_FONTE = "API externa (" + host + ")" + ($("apiSerie").value ? " — " + $("apiSerie").value : ""); }
+      else { $("bcbText").value = linhas; $("btnConvertBCB").click(); UNID_DESC = (UNID_DESC ? UNID_DESC + " — " : "") + "dados da API externa (" + host + ")"; }
+      $("apiInfo").textContent = "✅ Dados recebidos de " + host + " e colocados na seção " + ($("apiDestino").value === "corr" ? "6" : "3") + ".";
+    }).catch(function(e){ ov(false); avisar("A API externa não respondeu (" + e.message + "). Pode ser endereço/chave errados ou a API não deixa ser chamada de uma página (CORS). Nesse caso, exporte o arquivo no site dela e cole na seção 6 ou 3."); });
+  });
+})();
+function usarTjEmbutida(){ TJMG_INDEX = {}; TJ_PCT = {}; Object.keys(TJMG_EMBUTIDA).forEach(function(k){ TJMG_INDEX[k] = TJMG_EMBUTIDA[k]; }); $("tjFormula").value = "prevovercurr"; CORR_FONTE = TJMG_EMBUTIDA_NOME; log("✅ Tabela oficial do TJMG (novembro/2026) carregada: " + Object.keys(TJMG_INDEX).length + " meses."); }
+$("btnTjEmb").addEventListener("click", usarTjEmbutida);
+
+function fetchTJMG(onSuccess){
+  var dIni = parseDateBR($("dataInicio").value);
+  var dFim = parseDateBR($("dataFim").value);
+  if(!dIni || !dFim) return avisar("Preencha as datas de inicio e fim primeiro.");
+
+  var startYear = dIni.getFullYear();
+  var endYear = dFim.getFullYear();
+
+  ov(true, "Buscando fatores TJMG...", "Conectando ao servidor...");
+  $("tjmgAutoStatus").textContent = "Buscando fatores TJMG de "+startYear+" a "+endYear+"...";
+
+  fetch("/api/tjmg/fatores?startYear="+startYear+"&endYear="+endYear)
+    .then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); })
+    .then(function(data){
+      var count = 0;
+      var fatores = data.fatores || {};
+      Object.keys(fatores).forEach(function(ym){
+        TJMG_INDEX[ym] = fatores[ym];
+        count++;
+      });
+      log("TJMG automatico carregado: "+count+" meses (fonte: "+data.source+")");
+      $("tjmgAutoStatus").textContent = count+" fatores TJMG carregados ("+startYear+"-"+endYear+") - Fonte: "+data.source;
+      ov(false);
+      if(typeof onSuccess === "function") onSuccess();
+    })
+    .catch(function(e){
+      avisar("A busca automática do TJMG não está disponível ("+e.message+"). Cole a tabela da Corregedoria (ou a saída do Conversor de índices) na seção 6 e toque em Converter Fatores.");
+      $("tjmgAutoStatus").textContent = "Erro: "+e.message;
+      ov(false);
+    });
+}
+
+$("btnCalcular").addEventListener("click", calcular);
+if($("btnPreset")) $("btnPreset").addEventListener("click", function(){
+  var hoje = new Date(); var fim = "01/" + String(hoje.getMonth()+1).padStart(2,"0") + "/" + hoje.getFullYear();
+  var set = function(id, v){ $(id).value = v; $(id).dispatchEvent(new Event("change")); };
+  set("numProcesso", "0008868-79.2018.8.13.0395");
+  set("valorBase", "3512.10"); set("dataInicio", "01/09/2017"); set("dataFim", fim);
+  set("mesCapitalizacao", "9");
+  set("txJurosBanco", "9"); set("txMoraBanco", "1"); set("multaBanco", "0"); set("capBanco", "mensal");
+  set("txMoraSentenca", "1"); set("multaSentenca", "0"); set("capSentenca", "anual");
+  set("tipoBCB", "25464"); set("unidBCB", "am");
+  set("tipoHonorarios", "sentenca"); set("pctHonorarios", "10");
+  set("valorCausa", "6814.41"); set("dataAjuiz", "21/03/2018"); $("duasLeituras").checked = true;
+  set("corrAuto", "tjmg");
+  $("analiseBanco").checked = true; set("bancoValor","47251.20"); set("bancoMes","10/2025"); set("bancoTaxa","7.08"); set("bancoForma","simples_fixa");
+  set("recAtivar", "sim"); set("recValor", "200"); set("recData", "19/05/2022"); set("recMesmaRegra", "corr");
+  $("criteriosTexto").value = 'METODOLOGIA: Este memorial observa estritamente a r. sentença, mantida pelo v. acórdão e transitada em julgado: "o valor inicial da dívida que declaro correto, a saber, R$ 3.512,10, deverá ser corrigido pela tabela da Corregedoria-Geral de Justiça do Estado de Minas Gerais, acrescido de juros remuneratórios segundo a taxa média de mercado para \u201cPessoa Física - Crédito pessoal não consignado\u201d, com capitalização anual, e acrescido de juros de mora de 1% ao mês, contados a partir do dia 1º de setembro de 2017". Os juros remuneratórios seguem a taxa média de cada mês divulgada pelo Banco Central; os juros do período são incorporados ao principal a cada 12 meses contados de 01/09/2017 (capitalização anual).';
+  $("criteriosTexto").dispatchEvent(new Event("change"));
+  $("presetInfo").style.display = "block";
+  $("presetInfo").innerHTML = "✅ Preenchido pela sentença: R$ 3.512,10 a partir de 01/09/2017; correção TJMG; taxa média MENSAL do crédito pessoal não consignado (série 25464, % ao mês — a mesma que deu 7,08% em set/2017 no cálculo do banco e da Replit); capitalização anual a cada 12 meses (incorpora em setembro); mora 1% ao mês; multa 0%. Cenário A = contrato (9% + 1% ao mês, capitalização mensal). Honorários recursais: R$ 400,00 fixados no acórdão (19/05/2022), 50% para cada parte → R$ 200,00 a cargo do banco, corrigidos pela tabela TJMG (<b>confira essa divisão com o seu advogado</b>). Correção: <b>tabela oficial do TJMG embutida (válida para novembro/2026)</b>. Para um mês mais novo, cole a tabela do mês na seção 6. Depois toque em Calcular Auditoria.";
+  usarTjEmbutida();
+  log("📌 Campos preenchidos conforme a sentença e tabela oficial do TJMG carregada. Toque em Calcular Auditoria.");
+});
+function corrigirDesde(valor, dIni, dFim){
+  var ms = listMonths(dIni, dFim), v = valor, falta = 0;
+  for(var i=1;i<ms.length;i++){ var c = getTJMGCorrection(ms[i-1], ms[i]); if(!c && !(Object.keys(TJ_PCT).length ? TJ_PCT[ms[i-1]] != null : (TJMG_INDEX[ms[i]] && TJMG_INDEX[ms[i-1]]))) falta++; v *= (1 + c); }
+  return {valor: v, falta: falta};
+}
+
+function temCorrecao(){ return Object.keys(TJMG_INDEX).length > 0 || Object.keys(TJ_PCT).length > 0; }
+function getTJMGCorrection(ymPrev, ymCurr){
+  if(Object.keys(TJ_PCT).length) return TJ_PCT[ymPrev] != null ? TJ_PCT[ymPrev] : 0; // índice do mês anterior leva o valor ao mês seguinte
+  var hasTJMG = Object.keys(TJMG_INDEX).length > 0;
+  if(!hasTJMG) return 0;
+  var fPrev = TJMG_INDEX[ymPrev];
+  var fCurr = TJMG_INDEX[ymCurr];
+  if(!fPrev || !fCurr || fCurr === 0) return 0;
+  var formula = $("tjFormula").value;
+  if(formula === "curroverprev") return (fCurr / fPrev - 1);
+  return (fPrev / fCurr - 1);
+}
+
+function calcularRecursal(valorFixo, dataBase, dataFim){
+  if($("recMesmaRegra").value === "nao") return valorFixo;
+  if($("recMesmaRegra").value === "corr") return corrigirDesde(valorFixo, dataBase, dataFim).valor;
+
+  var months = listMonths(dataBase, dataFim);
+  var sp = valorFixo;
+  var sj = 0;
+  var mesCapAnual = parseInt($("mesCapitalizacao").value);
+  var txMoraSentenca = toNum($("txMoraSentenca").value);
+  var capSentenca = $("capSentenca").value;
+
+  for(var i = 0; i < months.length; i++){
+    var ym = months[i];
+
+    if(i > 0){
+      var correcao = getTJMGCorrection(months[i-1], ym);
+      sp = sp * (1 + correcao);
+      sj = sj * (1 + correcao);
+    }
+
+    var bcbTaxa = BCB_INDEX[ym] || 0;
+    var taxaMensal = (bcbTaxa + txMoraSentenca) / 100;
+    sj += sp * taxaMensal;
+
+    if(capSentenca === "mensal"){
+      sp = sp + sj;
+      sj = 0;
+    } else if(capSentenca === "anual" && i < months.length - 1){
+      var proxMes = parseInt(months[i+1].split("-")[1]);
+      if(proxMes === mesCapAnual){
+        sp = sp + sj;
+        sj = 0;
+      }
+    }
+  }
+  return sp + sj;
+}
+
+// ===== 🔄 Sempre atualizado: antes de calcular, completa o que faltar (daqui a 3 ou 10 meses também) =====
+// · juros: busca no Banco Central os meses que faltam da série escolhida;
+// · correção pela tabela TJMG: estende os fatores pelo INPC (série 188 — o mesmo índice da tabela ICGJ) depois do último mês da tabela;
+// · sem internet: calcula até o último mês que tem índice e avisa.
+var EXTENSAO_TJ = "";
+function prepararDados(){
+  var dIni = parseDateBR($("dataInicio").value), dFim = parseDateBR($("dataFim").value);
+  if(!dIni || !dFim) return Promise.resolve();
+  var meses = listMonths(dIni, dFim), tarefas = [];
+  var codS = $("tipoBCB").value === "custom" ? ($("customSerie").value||"").trim() : $("tipoBCB").value;
+  var faltaB = meses.filter(function(m){ return BCB_RAW[m] == null; });
+  if(Object.keys(BCB_RAW).length && faltaB.length && codS){
+    var p0 = faltaB[0].split("-"); var d0 = new Date(+p0[0], +p0[1]-1, 1);
+    tarefas.push(buscarSerie(codS, d0, dFim).then(function(m){ var n = 0; Object.keys(m).forEach(function(k){ if(BCB_RAW[k] == null){ BCB_RAW[k] = m[k]; n++; } }); if(n){ aplicarUnidade(); UNID_DESC += " (+" + n + " mês(es) atualizados pela API do Banco Central)"; } }).catch(function(){}));
+  }
+  var ksT = Object.keys(TJMG_INDEX).sort();
+  if(ksT.length && !Object.keys(TJ_PCT).length){
+    var ultT = ksT[ksT.length-1];
+    if(ultT < meses[meses.length-1]){
+      var pu = ultT.split("-"); var du = new Date(+pu[0], +pu[1]-1, 1);
+      tarefas.push(buscarSerie(188, du, dFim).then(function(inpc){
+        var k = ultT, n = 0;
+        while(k < meses[meses.length-1] && inpc[k] != null){ var y = +k.slice(0,4), mm = +k.slice(5) + 1; if(mm > 12){ mm = 1; y++; } var prox = y + "-" + String(mm).padStart(2,"0"); TJMG_INDEX[prox] = TJMG_INDEX[k] / (1 + inpc[k]/100); k = prox; n++; }
+        if(n) EXTENSAO_TJ = "Fatores da tabela TJMG até " + ultT.slice(5) + "/" + ultT.slice(0,4) + "; os " + n + " mês(es) seguintes foram estendidos pelo INPC/IBGE (SGS 188), o mesmo índice da tabela ICGJ.";
+      }).catch(function(){}));
+    }
+  }
+  window._avisoFim = "";
+  return Promise.all(tarefas).then(function(){
+    // sem índice no fim do período? calcula até o último mês completo
+    var temTudo = function(m, i){ var okB = BCB_INDEX[m] != null; var okT = i === 0 || (Object.keys(TJ_PCT).length ? TJ_PCT[meses[i-1]] != null : (TJMG_INDEX[m] && TJMG_INDEX[meses[i-1]])); return okB && okT; };
+    var ult = -1; for(var i=0;i<meses.length;i++){ if(temTudo(meses[i], i)) ult = i; else break; }
+    if(ult >= 1 && ult < meses.length - 1){
+      var mu = meses[ult]; $("dataFim").value = "01/" + mu.slice(5) + "/" + mu.slice(0,4);
+      window._avisoFim = "ℹ️ Os índices oficiais disponíveis vão até " + mu.slice(5) + "/" + mu.slice(0,4) + ": calculei até lá. Para ir além, abra com internet (o Banco Central atualiza sozinho) ou cole a tabela nova do TJMG / o CSV novo do Bacen.\n";
+      log("ℹ️ Os índices oficiais disponíveis vão até " + mu.slice(5) + "/" + mu.slice(0,4) + ". Calculei até lá. Para ir além: abra com internet (o Banco Central atualiza sozinho) ou cole a tabela nova do TJMG / o CSV novo do Bacen.");
+    }
+  });
+}
+var _preparando = false;
+function calcular(){
+  if(!_preparando){ _preparando = true; prepararDados().then(function(){ calcular(); _preparando = false; }, function(){ calcular(); _preparando = false; }); return; }
+  var valorBase = toNum($("valorBase").value);
+  var dIni = parseDateBR($("dataInicio").value);
+  var dFim = parseDateBR($("dataFim").value);
+  if(!dIni || !dFim || valorBase <= 0) return avisar("Preencha valor base e datas.");
+
+  var txJurosBanco = toNum($("txJurosBanco").value);
+  var txMoraBanco = toNum($("txMoraBanco").value);
+  var capBanco = $("capBanco").value;
+  var txMoraSentenca = toNum($("txMoraSentenca").value);
+  var pctHonorarios = toNum($("pctHonorarios").value);
+  var mesCapAnual = parseInt($("mesCapitalizacao").value);
+  var multaBanco = toNum($("multaBanco").value);
+  var multaSentenca = toNum($("multaSentenca").value);
+
+  var months = listMonths(dIni, dFim);
+  if(months.length < 2) return avisar("Período deve ter pelo menos 2 meses.");
+
+  var hasTJMG = temCorrecao();
+  var hasBCB = Object.keys(BCB_INDEX).length > 0;
+
+  if(!hasTJMG){ fetchCorrecao().then(function(ok){ if(ok) calcular(); }); return; }
+  if(!hasBCB){ fetchBCB().then(function(ok){ if(ok) calcular(); }); return; }
+
+  // meses sem índice
+  var semTJ = [], semBCB = [];
+  for(var q=1;q<months.length;q++){
+    var temTJ = Object.keys(TJ_PCT).length ? TJ_PCT[months[q-1]] != null : (TJMG_INDEX[months[q]] && TJMG_INDEX[months[q-1]]);
+    if(!temTJ) semTJ.push(months[q]);
+  }
+  months.forEach(function(m){ if(BCB_INDEX[m] == null) semBCB.push(m); });
+
+  ov(true, "Calculando...");
+  setTimeout(function(){
+    try {
+      var rowsJuiz = [];
+
+      var saldoBanco = valorBase;
+      var txJurosBancoDecimal = txJurosBanco / 100;
+      var txMoraBancoDecimal = txMoraBanco / 100;
+      var bancoJurosAcum = 0;
+
+      var capSentenca = $("capSentenca").value;
+
+      var principalJuiz = valorBase;
+      var jurosAcumJuiz = 0;
+
+      for(var i = 0; i < months.length; i++){
+        var ym = months[i];
+        var mesNum = parseInt(ym.split("-")[1]);
+
+        if(capBanco === "mensal"){
+          saldoBanco = saldoBanco * (1 + txJurosBancoDecimal + txMoraBancoDecimal);
+        } else {
+          var jurosM = saldoBanco * txJurosBancoDecimal;
+          var moraM = saldoBanco * txMoraBancoDecimal;
+          bancoJurosAcum += jurosM + moraM;
+          if(i < months.length - 1){
+            var proxMesBanco = parseInt(months[i+1].split("-")[1]);
+            if(proxMesBanco === mesCapAnual){
+              saldoBanco = saldoBanco + bancoJurosAcum;
+              bancoJurosAcum = 0;
+            }
+          }
+        }
+        var saldoBancoTotal = (capBanco === "mensal") ? saldoBanco : saldoBanco + bancoJurosAcum;
+
+        if(i > 0){
+          var correcao = getTJMGCorrection(months[i-1], ym);
+          principalJuiz = principalJuiz * (1 + correcao);
+          jurosAcumJuiz = jurosAcumJuiz * (1 + correcao);
+        }
+
+        var fatorAtual = i > 0 ? getTJMGCorrection(months[i-1], ym) * 100 : 0;
+        var bcbTaxa = BCB_INDEX[ym] || 0;
+        var taxaMensal = (bcbTaxa + txMoraSentenca) / 100;
+
+        jurosAcumJuiz += principalJuiz * taxaMensal;
+
+        var saldoJuiz = principalJuiz + jurosAcumJuiz;
+
+        rowsJuiz.push({
+          ym: ym,
+          saldoBanco: saldoBancoTotal,
+          fatorTJMG: fatorAtual,
+          bcbTaxa: bcbTaxa,
+          moraAcum: jurosAcumJuiz,
+          saldoJuiz: saldoJuiz,
+          principalCorrigido: principalJuiz,
+          isCapitalizacao: false
+        });
+
+        if(capSentenca === "mensal"){
+          principalJuiz = saldoJuiz;
+          jurosAcumJuiz = 0;
+          rowsJuiz[rowsJuiz.length-1].isCapitalizacao = true;
+        } else if(capSentenca === "anual" && i < months.length - 1){
+          var proxMes = parseInt(months[i+1].split("-")[1]);
+          if(proxMes === mesCapAnual){
+            principalJuiz = saldoJuiz;
+            jurosAcumJuiz = 0;
+            rowsJuiz[rowsJuiz.length-1].isCapitalizacao = true;
+          }
+        }
+      }
+
+      var lastRow = rowsJuiz[rowsJuiz.length-1];
+      var saldoBancoSemMulta = lastRow.saldoBanco;
+      var saldoJuizSemMulta = lastRow.saldoJuiz;
+
+      var saldoFinalBanco = saldoBancoSemMulta * (1 + multaBanco / 100);
+      var saldoFinalJuiz = saldoJuizSemMulta * (1 + multaSentenca / 100);
+      var proveitoEconomico = saldoFinalBanco - saldoFinalJuiz;
+
+      var tipoHon = $("tipoHonorarios").value;
+      var honorarios = 0;
+      var honLabel = "";
+
+      if(tipoHon === "causa"){
+        var dAj = parseDateBR($("dataAjuiz").value), vCa = toNum($("valorCausa").value);
+        var corrCa = (dAj && vCa) ? corrigirDesde(vCa, dAj, dFim).valor : vCa;
+        honorarios = corrCa * (pctHonorarios / 100);
+        honLabel = fmtPct(pctHonorarios) + " SOBRE O VALOR DA CAUSA ATUALIZADO (" + fmtBRL(corrCa) + ")";
+      } else if(tipoHon === "proveito"){
+        honorarios = proveitoEconomico * (pctHonorarios / 100);
+        honLabel = fmtPct(pctHonorarios) + " SOBRE O PROVEITO ECONÔMICO";
+      } else if(tipoHon === "sentenca"){
+        honorarios = saldoFinalJuiz * (pctHonorarios / 100);
+        honLabel = fmtPct(pctHonorarios) + " SOBRE O VALOR DA SENTENÇA";
+      } else {
+        var honFixoVal = toNum($("honFixoValor").value);
+        var honFixoDataParsed = parseDateBR($("honFixoData").value);
+        if(honFixoDataParsed && hasTJMG){
+          var keyIni = dateToYM(honFixoDataParsed);
+          var keyFim = months[months.length - 1];
+          var fatIni = TJMG_INDEX[keyIni] || 1;
+          var fatFim = TJMG_INDEX[keyFim] || 1;
+          if(fatIni > 0 && fatFim > 0){
+            var formula = $("tjFormula").value;
+            if(formula === "curroverprev"){
+              honorarios = honFixoVal * (fatFim / fatIni);
+            } else {
+              honorarios = honFixoVal * (fatIni / fatFim);
+            }
+          } else {
+            honorarios = honFixoVal;
+          }
+        } else {
+          honorarios = honFixoVal;
+        }
+        honLabel = "VALOR FIXO ATUALIZADO (TJMG)";
+      }
+
+      var honRecursal = 0;
+      var honRecLabel = "";
+      if($("recAtivar").value === "sim"){
+        var recVal = toNum($("recValor").value);
+        var recDataParsed = parseDateBR($("recData").value);
+        if(recDataParsed){
+          honRecursal = calcularRecursal(recVal, recDataParsed, dFim);
+          honRecLabel = {sim:"ATUALIZADO (TJMG + BCB + MORA)", corr:"VALOR ARBITRADO CORRIGIDO PELA TABELA TJMG", nao:"VALOR FIXO"}[$("recMesmaRegra").value];
+        }
+      }
+
+      var serieBCBNome = $("tipoBCB").options[$("tipoBCB").selectedIndex].text;
+
+      CALC_RESULT = {
+        processo: $("numProcesso").value,
+        cliente: $("nomeCliente").value,
+        advogado: $("nomeAdv").value,
+        oab: $("oab").value,
+        valorBase: valorBase,
+        dataInicio: $("dataInicio").value,
+        dataFim: $("dataFim").value,
+        months: months,
+        rowsJuiz: rowsJuiz,
+        saldoBancoSemMulta: saldoBancoSemMulta,
+        saldoJuizSemMulta: saldoJuizSemMulta,
+        saldoFinalBanco: saldoFinalBanco,
+        saldoFinalJuiz: saldoFinalJuiz,
+        proveitoEconomico: proveitoEconomico,
+        honorarios: honorarios,
+        honLabel: honLabel,
+        honRecursal: honRecursal,
+        honRecLabel: honRecLabel,
+        pctHonorarios: pctHonorarios,
+        txJurosBanco: txJurosBanco,
+        txMoraBanco: txMoraBanco,
+        txMoraSentenca: txMoraSentenca,
+        multaBanco: multaBanco,
+        multaSentenca: multaSentenca,
+        hasTJMG: hasTJMG,
+        hasBCB: hasBCB,
+        semTJ: semTJ,
+        semBCB: semBCB,
+        capSentenca: capSentenca,
+        capBancoUsado: capBanco,
+        serieBCBNome: serieBCBNome,
+        unidDesc: UNID_DESC,
+        banco: $("analiseBanco").checked ? {valor: toNum($("bancoValor").value), mes: $("bancoMes").value, taxa: toNum($("bancoTaxa").value), forma: $("bancoForma").value, doc: $("bancoDoc").value} : null,
+        leituraAcordao: (function(){ if(!$("duasLeituras").checked) return null; var dA = parseDateBR($("dataAjuiz").value); var vc = toNum($("valorCausa").value); if(!dA || !vc) return null; var c = corrigirDesde(vc, dA, dFim); return {vc: vc, data: $("dataAjuiz").value, corrigido: c.valor, hon: c.valor * 0.10, falta: c.falta}; })(),
+        criterios: $("criteriosTexto").value,
+        fontes: $("fontesTexto").value
+      };
+
+      renderParecer();
+      log((window._avisoFim||"") + (semTJ.length||semBCB.length ? "⚠️ ATENÇÃO: faltam índices — correção em "+semTJ.length+" mês(es), BCB em "+semBCB.length+" mês(es). Confira antes de juntar.\n" : "✅ Todos os meses têm índice.\n") + "Cálculo finalizado! " + months.length + " meses processados.\nBanco: " + fmtBRL(saldoFinalBanco) + " (c/ multa " + fmtPct(multaBanco) + ")\nJuiz: " + fmtBRL(saldoFinalJuiz) + " (c/ multa " + fmtPct(multaSentenca) + ")\nProveito: " + fmtBRL(proveitoEconomico) + "\nHonorários: " + fmtBRL(honorarios) + (honRecursal > 0 ? "\nRecursais: " + fmtBRL(honRecursal) : ""));
+    } catch(e){
+      avisar("Erro no cálculo: "+e.message);
+      console.error(e);
+    }
+    ov(false);
+  }, 100);
+}
+
+function renderParecer(){
+  var r = CALC_RESULT;
+  if(!r) return;
+
+  var html = '';
+  html += '<div class="title">PARECER DE AUDITORIA FINANCEIRA</div>';
+  html += '<div class="subtitle">Processo: '+(r.processo||'_________________');
+  if(r.cliente) html += ' | Cliente: '+r.cliente;
+  html += '</div>';
+
+  // ===== RESUMO OBJETIVO =====
+  var achaLinha = function(ym){ for(var q=0;q<r.rowsJuiz.length;q++) if(r.rowsJuiz[q].ym===ym) return r.rowsJuiz[q]; return null; };
+  var bMes = r.banco ? (function(){ var m = /^(\d{1,2})\/(\d{4})$/.exec((r.banco.mes||"").trim()); return m ? m[2]+"-"+String(+m[1]).padStart(2,"0") : null; })() : null;
+  var linB = bMes ? achaLinha(bMes) : null;
+  html += '<div class="section">RESUMO</div><div class="criterios-box">';
+  if(!/0008868/.test(r.processo||'')) html += '<p><b>1. O que o título manda.</b> '+(r.criterios||'').replace(/\n/g,'<br>')+'</p>';
+  else html += '<p><b>1. O que o título manda.</b> A r. sentença, mantida pelo v. acórdão e transitada em julgado, declarou o valor de <b>R$ 3.512,10</b> (31/08/2017), a ser <i>"corrigido pela tabela da Corregedoria-Geral de Justiça do Estado de Minas Gerais, acrescido de juros remuneratórios segundo a taxa média de mercado para \u201cPessoa Física - Crédito pessoal não consignado\u201d, com capitalização anual, e acrescido de juros de mora de 1% ao mês, contados a partir do dia 1º de setembro de 2017"</i>.</p>';
+  html += '<p><b>2. Como foi aplicado.</b> Mês a mês, de '+r.dataInicio+' a '+r.dataFim+': (a) o principal é corrigido pela variação da tabela da CGJ/TJMG; (b) sobre o principal corrigido incidem os juros remuneratórios pela taxa média <b>daquele mês</b> divulgada pelo Banco Central, mais 1% de mora; (c) esses juros ficam acumulados à parte durante 12 meses e, ao final de cada período de 12 meses (setembro a agosto), são incorporados ao principal — é a <b>capitalização anual</b>.</p>';
+  html += '<p><b>3. Resultado.</b> Saldo devedor pelo título em '+r.dataFim+': <b>'+fmtBRL(r.saldoFinalJuiz)+'</b>. Honorários sucumbenciais ('+r.honLabel.toLowerCase()+'): <b>'+fmtBRL(r.honorarios)+'</b>'+(r.honRecursal>0?'; honorários recursais: <b>'+fmtBRL(r.honRecursal)+'</b>':'')+'.</p>';
+  if(r.banco){
+    html += '<p><b>4. Por que o cálculo do executado não serve.</b> O executado apresentou <b>'+fmtBRL(r.banco.valor)+'</b> ('+r.banco.mes+'), aplicando <b>'+fmtPct(r.banco.taxa)+' ao mês fixos em todo o período, em juros simples e sem capitalização anual</b>. A taxa de '+fmtPct(r.banco.taxa)+' é apenas a taxa média de setembro/2017; o título manda aplicar a taxa média de <b>cada mês</b> e capitalizar <b>anualmente</b>. Por isso o valor fica muito abaixo do devido'+(linB?' (pelo título, em '+r.banco.mes+': <b>'+fmtBRL(linB.saldoJuiz)+'</b>)':'')+'. É vedado, na liquidação, modificar a sentença (art. 509, §4º, CPC).</p>';
+  }
+  html += '</div>';
+
+  if((r.semTJ&&r.semTJ.length) || (r.semBCB&&r.semBCB.length)){
+    html += '<div style="border:2px solid #dc2626;background:#fef2f2;color:#991b1b;padding:10px;border-radius:8px;margin:8px 0;font-family:system-ui;font-size:12px"><b>RASCUNHO — NÃO JUNTAR:</b> faltam índices. Correção TJMG: '+r.semTJ.length+' mês(es) '+(r.semTJ.slice(0,6).join(", "))+(r.semTJ.length>6?"…":"")+'. Taxa BCB: '+r.semBCB.length+' mês(es) '+(r.semBCB.slice(0,6).join(", "))+(r.semBCB.length>6?"…":"")+'.</div>';
+  }
+  html += '<div class="section">I. CRITÉRIOS TÉCNICOS DA AUDITORIA</div>';
+  if(r.criterios){
+    html += '<div class="criterios-box">'+r.criterios.replace(/\n/g,'<br>')+'</div>';
+  }
+
+  html += '<div class="section">II. QUADRO COMPARATIVO E PROVEITO ECONÔMICO</div>';
+  html += '<div class="quad">';
+  html += '<div class="quad-box a"><div class="lbl">Cenário A<br>(Banco/Contrato'+(r.multaBanco > 0 ? ' + Multa '+fmtPct(r.multaBanco) : '')+')</div><div class="val">'+fmtBRL(r.saldoFinalBanco)+'</div></div>';
+  html += '<div class="quad-box b"><div class="lbl">Cenário B<br>(Juiz/Sentença'+(r.multaSentenca > 0 ? ' + Multa '+fmtPct(r.multaSentenca) : '')+')</div><div class="val">'+fmtBRL(r.saldoFinalJuiz)+'</div></div>';
+  html += '</div>';
+  html += '<div class="proveito"><div class="lbl">Proveito Econômico do Cliente</div><div class="val">'+fmtBRL(r.proveitoEconomico)+'</div></div>';
+  html += '<div class="honorarios"><div class="lbl">Honorários Sucumbenciais ('+r.honLabel+')</div><div class="val">'+fmtBRL(r.honorarios)+'</div></div>';
+
+  if(r.honRecursal > 0){
+    html += '<div class="honorarios" style="border-color:#7c3aed"><div class="lbl">Honorários Recursais ('+r.honRecLabel+')</div><div class="val" style="color:#7c3aed">'+fmtBRL(r.honRecursal)+'</div></div>';
+  }
+
+  if(r.leituraAcordao){
+    var la = r.leituraAcordao;
+    html += '<div class="honorarios" style="border-color:#475569;background:#f8fafc"><div class="lbl">Honorários — leitura literal do acórdão: 10% sobre o valor atribuído à causa (R$ '+la.vc.toLocaleString("pt-BR",{minimumFractionDigits:2})+'), corrigido desde '+la.data+' (Súmula 14/STJ)</div><div class="val" style="color:#334155">'+fmtBRL(la.hon)+'</div><div style="font-size:11px;color:#555">Valor da causa corrigido: '+fmtBRL(la.corrigido)+(la.falta?' · ⚠️ faltam índices em '+la.falta+' mês(es)':'')+'. Sem juros de mora (contam do trânsito em julgado — art. 85, §16, CPC).</div></div>';
+  }
+  var totalGeral = r.saldoFinalJuiz + r.honorarios + r.honRecursal;
+  html += '<div class="total-geral"><div class="lbl">Total Devido pelo Banco (Dívida + Honorários)</div><div class="val">'+fmtBRL(totalGeral)+'</div></div>';
+
+  html += '<div class="section">III. METODOLOGIA</div>';
+  html += '<div class="subsection">Cenário A — Banco/Contrato</div>';
+  var capDescA = (r.capBancoUsado === "mensal") ? "capitalizacao mensal composta (juros sobre juros)" : (r.capBancoUsado === "anual") ? "capitalizacao anual" : "juros simples sem capitalizacao";
+  html += '<p style="margin:4px 0">Aplicação de juros remuneratórios de <b>'+fmtPct(r.txJurosBanco)+'</b> ao mês, ';
+  html += 'acrescidos de mora de <b>'+fmtPct(r.txMoraBanco)+'</b> ao mês, ';
+  html += 'com '+capDescA+', totalizando taxa efetiva de <b>'+fmtPct(r.txJurosBanco+r.txMoraBanco)+'</b> ao mês';
+  if(r.multaBanco > 0) html += ', acrescido de multa contratual de <b>'+fmtPct(r.multaBanco)+'</b>';
+  html += '.</p>';
+
+  html += '<div class="subsection">Cenario B -- Juiz/Sentenca</div>';
+  var capDescB = (r.capSentenca === "mensal") ? "capitalizacao mensal (juros compostos)" : (r.capSentenca === "anual") ? "juros simples com capitalizacao anual (Art. 591 do Codigo Civil)" : "juros simples sem capitalizacao";
+  html += '<p style="margin:4px 0">Valor base de <b>'+fmtBRL(r.valorBase)+'</b>, corrigido monetariamente pela ';
+  html += '<b>Tabela da Corregedoria-Geral de Justica de Minas Gerais (TJMG)</b>';
+  if(!r.hasTJMG) html += ' <i>(fatores nao informados -- sem correcao monetaria aplicada)</i>';
+  html += ', acrescido de juros remuneratorios segundo a <b>'+r.serieBCBNome+'</b> (Banco Central do Brasil)'+(r.unidDesc ? ' — '+r.unidDesc : '');
+  html += ', com <b>'+capDescB+'</b>';
+  html += ', e acrescido de juros de mora de <b>'+fmtPct(r.txMoraSentenca)+'</b> ao mes';
+  if(r.multaSentenca > 0) html += ', acrescido de multa de <b>'+fmtPct(r.multaSentenca)+'</b> conforme Art. 523 do CPC';
+  html += '.</p>';
+
+  // ===== Como se aplicam os juros mensais e a capitalização anual (com os números deste cálculo) =====
+  var r0 = r.rowsJuiz[0], r1 = r.rowsJuiz[1], cap1 = null, pos1 = null;
+  for(var qc=0; qc<r.rowsJuiz.length; qc++){ if(r.rowsJuiz[qc].isCapitalizacao){ cap1 = r.rowsJuiz[qc]; pos1 = r.rowsJuiz[qc+1] || null; break; } }
+  html += '<div class="subsection">Como se aplicam os juros mensais e a capitalização anual</div>';
+  html += '<p style="margin:4px 0;text-align:justify"><b>Mês a mês:</b> em '+r0.ym+', sobre o principal de '+fmtBRL(r0.principalCorrigido)+' incidiram '+fmtPct(r0.bcbTaxa)+' (taxa média do mês) + '+fmtPct(r.txMoraSentenca)+' (mora) = '+fmtBRL(r0.moraAcum)+' de juros. ';
+  if(r1) html += 'Em '+r1.ym+', o principal foi corrigido pela tabela do TJMG ('+(r1.fatorTJMG).toFixed(4).replace(".",",")+'%) para '+fmtBRL(r1.principalCorrigido)+' e recebeu mais '+fmtPct(r1.bcbTaxa)+' + '+fmtPct(r.txMoraSentenca)+' — sempre sobre o principal, sem juros sobre juros dentro do período. ';
+  html += '</p>';
+  if(cap1) html += '<p style="margin:4px 0;text-align:justify"><b>Capitalização anual:</b> ao final do 1º período ('+cap1.ym+'), os juros acumulados de '+fmtBRL(cap1.moraAcum)+' foram somados ao principal corrigido ('+fmtBRL(cap1.principalCorrigido)+'), formando o novo principal de '+fmtBRL(cap1.saldoJuiz)+'. '+(pos1?'A partir de '+pos1.ym+' os juros passam a incidir sobre esse novo principal. ':'')+'O mesmo se repete a cada 12 meses (linhas em azul no memorial). Isso é capitalização <b>anual</b>: os juros só viram principal uma vez por ano, e não todo mês como no contrato.</p>';
+  html += '<div class="subsection">Fontes dos Dados</div>';
+  if(r.fontes){
+    var fontesLines = r.fontes.split('\n');
+    for(var fi=0; fi<fontesLines.length; fi++){
+      var fl = fontesLines[fi].trim();
+      if(fl){
+        fl = fl.replace(/(https?:\/\/[^\s)]+)/g, '<a href="$1" style="color:#2563eb">$1</a>');
+        html += '<p style="margin:4px 0">'+fl+'</p>';
+      }
+    }
+  }
+  if(CORR_FONTE) html += '<p style="margin:4px 0">• Índices de correção utilizados: '+CORR_FONTE+'.</p>';
+  if(EXTENSAO_TJ) html += '<p style="margin:4px 0">• '+EXTENSAO_TJ+'</p>';
+  html += '<p style="margin:4px 0">• Período: '+r.dataInicio+' a '+r.dataFim+' ('+r.months.length+' meses)</p>';
+
+  // ---- Parâmetros do título e fontes verificáveis ----
+  html += '<div class="section">IV. PARÂMETROS DO TÍTULO E COMO CONFERIR</div>';
+  html += '<table class="mem" style="font-family:\'Times New Roman\',serif;font-size:11px"><thead><tr><th>Parâmetro</th><th>Fixado no título</th><th>Aplicado neste cálculo</th><th>Fonte para conferir</th></tr></thead><tbody>';
+  var linhaP = function(a,b,c,d){ html += '<tr><td style="text-align:left">'+a+'</td><td style="text-align:left">'+b+'</td><td style="text-align:left">'+c+'</td><td style="text-align:left;word-break:break-all">'+d+'</td></tr>'; };
+  linhaP('Valor e data-base', 'R$ 3.512,10 em 31/08/2017, encargos a partir de 01/09/2017 (sentença)', fmtBRL(r.valorBase)+' de '+r.dataInicio+' a '+r.dataFim, 'Sentença, parte dispositiva');
+  linhaP('Correção monetária', 'Tabela da Corregedoria-Geral de Justiça de MG', (CORR_FONTE||'Tabela TJMG informada na seção 6')+'; mês a mês: fator do mês anterior ÷ fator do mês', '<a href="https://www.tjmg.jus.br/portal-tjmg/processos/tabela-de-atualizacao-monetaria/">tjmg.jus.br — Tabela de atualização monetária</a>');
+  var codS = $("tipoBCB").value === "custom" ? ($("customSerie").value||"") : $("tipoBCB").value;
+  linhaP('Juros remuneratórios', 'Taxa média de mercado — "Pessoa Física - Crédito pessoal não consignado"', r.serieBCBNome+(r.unidDesc?' — '+r.unidDesc:''), '<a href="https://dadosabertos.bcb.gov.br/dataset/'+codS+'">Banco Central — Dados Abertos, série '+codS+'</a><br><a href="https://api.bcb.gov.br/dados/serie/bcdata.sgs.'+codS+'/dados?formato=json&dataInicial='+r.dataInicio+'&dataFinal='+r.dataFim+'">valores mês a mês (API oficial)</a>');
+  linhaP('Capitalização', 'Anual (sentença)', r.capSentenca==='anual' ? 'Juros simples dentro de cada período de 12 meses, incorporados ao principal a cada 12 meses (linhas em azul)' : r.capSentenca, 'Sentença: "com capitalização anual"');
+  linhaP('Juros de mora', '1% ao mês a partir de 01/09/2017', fmtPct(r.txMoraSentenca)+' ao mês sobre o principal corrigido', 'Sentença, parte dispositiva');
+  linhaP('Honorários', '10% sobre o valor da causa — ação principal (acórdão, fl. 5)', r.honLabel + (r.leituraAcordao ? ' · e leitura literal: '+fmtBRL(r.leituraAcordao.hon) : ''), 'Acórdão — Apelação Cível 1.0000.22.016520-3/001; Súmula 14/STJ; art. 85, §§ 2º e 16, CPC');
+  html += '</tbody></table>';
+  html += '<p style="margin:4px 0;font-size:11px">Como conferir: (1) abra a tabela do TJMG e confira o fator de 2 ou 3 meses do memorial; (2) abra o link da série do Banco Central e confira a taxa de alguns meses; (3) refaça um ano: some os juros mensais (taxa + mora) sobre o principal corrigido e veja que o total foi incorporado ao fim dos 12 meses.</p>';
+
+  // ---- Resumo por período de capitalização ----
+  var per = [], acc = null;
+  r.rowsJuiz.forEach(function(row){ if(!acc) acc = {ini: row.ym, juros: 0}; acc.fim = row.ym; acc.saldo = row.saldoJuiz; acc.principal = row.principalCorrigido; if(row.isCapitalizacao){ acc.incorporado = row.moraAcum; per.push(acc); acc = null; } });
+  if(acc){ acc.incorporado = null; per.push(acc); }
+  html += '<div class="subsection">Resumo da capitalização anual</div><table class="mem"><thead><tr><th>Período</th><th>Principal corrigido no fim</th><th>Juros do período (incorporados)</th><th>Saldo no fim</th></tr></thead><tbody>';
+  per.forEach(function(q){ html += '<tr><td>'+q.ini+' a '+q.fim+'</td><td>'+fmtBRL(q.principal)+'</td><td>'+(q.incorporado!=null?fmtBRL(q.incorporado):'(em curso)')+'</td><td>'+fmtBRL(q.saldo)+'</td></tr>'; });
+  html += '</tbody></table>';
+
+  html += '<div class="section">V. MEMORIAL DETALHADO — EVOLUÇÃO CONTRATUAL vs. JUDICIAL</div>';
+
+  html += '<table class="mem"><thead><tr>';
+  html += '<th>Mês/Ano</th><th>Saldo Banco</th><th>Correção TJMG (mês)</th><th>Juros BCB (% a.m.)</th><th>Juros acum. (BCB + mora)</th><th>Saldo Juiz</th>';
+  html += '</tr></thead><tbody>';
+
+  for(var i=0; i<r.rowsJuiz.length; i++){
+    var row = r.rowsJuiz[i];
+    var cls = row.isCapitalizacao ? ' class="cap"' : '';
+    html += '<tr'+cls+'>';
+    html += '<td>'+row.ym+'</td>';
+    html += '<td>'+fmtBRL(row.saldoBanco)+'</td>';
+    html += '<td>'+(Number(row.fatorTJMG)||0).toFixed(4).replace('.',',')+'%</td>';
+    html += '<td>'+fmtPct(row.bcbTaxa)+'</td>';
+    html += '<td>'+fmtBRL(row.moraAcum)+'</td>';
+    html += '<td>'+fmtBRL(row.saldoJuiz)+'</td>';
+    html += '</tr>';
+  }
+
+  html += '</tbody></table>';
+  html += '<p style="font-size:11px;color:#555;margin:4px 0">Linhas em azul: mês em que os juros acumulados são incorporados ao principal (capitalização '+(r.capSentenca==="anual"?"anual":"mensal")+'). No mês seguinte o acumulado recomeça — por isso o valor volta a ficar baixo.</p>';
+
+  if(r.banco){
+    html += '<div class="section">VI. ANÁLISE DO CÁLCULO APRESENTADO PELO EXECUTADO</div>';
+    html += '<p style="margin:4px 0">Documento: '+r.banco.doc+'. Valor apresentado: <b>'+fmtBRL(r.banco.valor)+'</b> ('+r.banco.mes+').</p>';
+    html += '<table class="mem" style="font-family:\'Times New Roman\',serif;font-size:11px"><thead><tr><th>Critério</th><th>O que o título manda</th><th>O que o executado fez</th><th>Conforme?</th></tr></thead><tbody>';
+    var lb = function(a,b,c,d){ html += '<tr><td style="text-align:left">'+a+'</td><td style="text-align:left">'+b+'</td><td style="text-align:left">'+c+'</td><td style="text-align:center">'+d+'</td></tr>'; };
+    lb('Valor e data-base','R$ 3.512,10 em 31/08/2017','R$ 3.512,10 em 31/08/2017','Sim');
+    lb('Correção monetária','Tabela CGJ/TJMG','Tabela TJ/MG (expurgada)','Sim');
+    lb('Juros remuneratórios','Taxa média de mercado do crédito pessoal não consignado — a de cada mês', fmtPct(r.banco.taxa)+' ao mês fixos (só a taxa de set/2017) em todo o período','<b>Não</b>');
+    lb('Capitalização','Anual', r.banco.forma==='simples_fixa' ? 'Nenhuma (juros simples do início ao fim)' : 'Ver documento','<b>Não</b>');
+    lb('Juros de mora','1% ao mês desde 01/09/2017','1% ao mês, simples','Sim');
+    html += '</tbody></table>';
+    html += '<p style="margin:4px 0;text-align:justify">O executado — que em seus cálculos habituais apresenta planilhas detalhadas — aqui juntou demonstrativo simplificado que congela a taxa do primeiro mês e suprime a capitalização anual determinada no título. '+(linB?'Na mesma data ('+r.banco.mes+'), o saldo pelo título é de <b>'+fmtBRL(linB.saldoJuiz)+'</b>, diferença de <b>'+fmtBRL(linB.saldoJuiz - r.banco.valor)+'</b>. ':'')+'O demonstrativo não atende ao art. 524 do CPC (demonstrativo discriminado e atualizado) e altera o título, o que é vedado (arts. 505 e 509, §4º, do CPC).</p>';
+    html += '<div class="section">VII. CONCLUSÃO</div>';
+  } else {
+    html += '<div class="section">VI. CONCLUSÃO</div>';
+  }
+  html += '<p style="margin:4px 0;text-align:justify">';
+  html += 'Diante da analise tecnica realizada, conclui-se que o valor apurado pelo ';
+  html += '<b>Cenario A (Banco/Contrato)</b>, no montante de <b>'+fmtBRL(r.saldoFinalBanco)+'</b>, ';
+  html += 'diverge significativamente do valor correto apurado conforme os criterios judiciais ';
+  html += '(<b>Cenario B</b>), que totaliza <b>'+fmtBRL(r.saldoFinalJuiz)+'</b>. ';
+  html += 'A diferenca de <b>'+fmtBRL(r.proveitoEconomico)+'</b> decorre ';
+
+  var capBDesc = (r.capBancoUsado === "mensal") ? "juros compostos mensais (anatocismo)" : (r.capBancoUsado === "anual") ? "juros compostos com capitalizacao anual" : "juros simples";
+  var capSDesc = (r.capSentenca === "mensal") ? "juros compostos mensais" : (r.capSentenca === "anual") ? "juros simples com capitalizacao anual conforme Art. 591 do Codigo Civil" : "juros simples sem capitalizacao";
+
+  if(r.capBancoUsado !== r.capSentenca){
+    html += 'da aplicacao de '+capBDesc+' pelo banco, enquanto a sentenca determinou '+capSDesc+', ';
+  } else {
+    html += 'da diferenca entre as taxas de juros e indices aplicados pelos cenarios, ';
+  }
+  html += 'em confronto com os indices oficiais determinados pela decisao judicial. ';
+  html += 'Os calculos apresentados neste parecer foram elaborados com base em dados oficiais ';
+  html += 'extraidos do Banco Central do Brasil (SGS) e da Tabela de Atualizacao Monetaria da ';
+  html += 'Corregedoria-Geral de Justica de Minas Gerais (TJMG), ';
+  html += 'podendo ser integralmente verificados e auditados por qualquer perito ou assistente tecnico.</p>';
+  html += '<p style="margin:8px 0;text-align:justify">';
+  html += 'Nestes termos, requer-se a homologacao dos calculos conforme o Cenario B, ';
+  html += 'por estar em estrita consonancia com os parametros fixados na sentenca.</p>';
+
+  if(r.advogado || r.oab){
+    html += '<div class="assinatura">';
+    html += '<div class="linha"></div>';
+    html += '<div class="nome">'+(r.advogado||'_________________')+'</div>';
+    if(r.oab) html += '<div class="oab">'+r.oab+'</div>';
+    html += '<div class="oab" style="margin-top:4px">Patrono da Causa / Auditor Juridico</div>';
+    html += '</div>';
+  }
+
+  $("parecer").innerHTML = html;
+}
+
+$("btnCopyAll").addEventListener("click", function(){
+  if(!CALC_RESULT) return avisar("Calcule primeiro.");
+  var text = $("parecer").innerText;
+  navigator.clipboard.writeText(text).then(function(){ log("✅ Texto do parecer copiado!"); });
+});
+
+$("btnCopyHtml").addEventListener("click", function(){
+  if(!CALC_RESULT) return avisar("Calcule primeiro.");
+  var fullHtml = "<!doctype html>\n<html lang=\"pt-BR\">\n<head>\n<meta charset=\"utf-8\"/>\n<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"/>\n<title>Parecer de Auditoria Financeira</title>\n<style>\nbody{margin:0;padding:20px;background:#e5e7eb;font-family:system-ui}\n.paper{max-width:900px;margin:0 auto;background:#fff;border-radius:12px;padding:20px 24px;box-shadow:0 8px 24px rgba(0,0,0,.12);font-family:'Times New Roman',Georgia,serif;font-size:13px;line-height:1.5;color:#1a1a1a}\n.paper .title{text-align:center;font-size:16px;font-weight:bold;margin-bottom:4px;text-transform:uppercase;letter-spacing:1px}\n.paper .subtitle{text-align:center;font-size:12px;color:#555;margin-bottom:16px}\n.paper .section{margin:16px 0 8px;font-size:14px;font-weight:bold;border-bottom:2px solid #1a1a1a;padding-bottom:4px}\n.paper .subsection{margin:10px 0 6px;font-size:13px;font-weight:bold}\n.quad{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:12px 0}\n.quad-box{border:2px solid #d1d5db;border-radius:10px;padding:14px;text-align:center}\n.quad-box.a{border-color:#ef4444;background:#fef2f2}\n.quad-box.b{border-color:#10b981;background:#f0fdf4}\n.quad-box .lbl{font-size:11px;color:#666;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}\n.quad-box .val{font-size:22px;font-weight:900}\n.quad-box.a .val{color:#dc2626}\n.quad-box.b .val{color:#059669}\n.proveito{text-align:center;margin:12px 0;padding:12px;background:#eff6ff;border:2px solid #3b82f6;border-radius:10px}\n.proveito .lbl{font-size:11px;color:#666;text-transform:uppercase}\n.proveito .val{font-size:20px;font-weight:900;color:#1d4ed8}\n.honorarios{text-align:center;margin:8px 0;padding:10px;background:#fefce8;border:2px solid #eab308;border-radius:10px}\n.honorarios .lbl{font-size:11px;color:#666;text-transform:uppercase}\n.honorarios .val{font-size:18px;font-weight:900;color:#a16207}\n.total-geral{text-align:center;margin:8px 0 16px;padding:12px;background:#f0fdf4;border:2px solid #059669;border-radius:10px}\n.total-geral .lbl{font-size:11px;color:#666;text-transform:uppercase}\n.total-geral .val{font-size:18px;font-weight:900;color:#059669}\n.criterios-box{background:#fffdf0;border:1px solid #ccc;padding:15px;margin:10px 0;font-size:11pt;text-align:justify;line-height:1.5}\ntable.mem{border-collapse:collapse;width:100%;font-size:10px;margin:8px 0;font-family:ui-monospace,monospace}\ntable.mem th,table.mem td{border:1px solid #d1d5db;padding:4px 6px;text-align:right}\ntable.mem th{background:#f1f5f9;font-weight:800;text-align:center;font-size:9px;text-transform:uppercase}\ntable.mem td:first-child{text-align:center;font-weight:600}\ntable.mem tr:nth-child(even){background:#f8fafc}\ntable.mem tr.cap{background:#dbeafe !important;font-weight:700}\n.assinatura{text-align:center;margin-top:30px;padding-top:10px}\n.assinatura .linha{width:300px;border-top:1px solid #1a1a1a;margin:0 auto 6px;padding-top:6px}\n.assinatura .nome{font-weight:bold;font-size:13px}\n.assinatura .oab{font-size:11px;color:#555}\n@media print{body{background:#fff;padding:0}.paper{box-shadow:none;border-radius:0}}\n@media(max-width:700px){.quad{grid-template-columns:1fr}}\n</style>\n</head>\n<body>\n<div class=\"paper\">" + $("parecer").innerHTML + "</div>\n</body>\n</html>";
+  navigator.clipboard.writeText(fullHtml).then(function(){ log("✅ HTML completo copiado! Cole no Playground ou em qualquer editor."); });
+});
+
+$("btnCompartilhar").addEventListener("click", function(){
+  if(!CALC_RESULT) return avisar("Calcule primeiro.");
+  var pag = '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Parecer — '+($("numProcesso").value||"")+'</title><style>body{margin:0;padding:16px;background:#e5e7eb;overscroll-behavior:none}.paper{max-width:900px;margin:0 auto;background:#fff;padding:20px;font-family:"Times New Roman",serif;font-size:13px;line-height:1.5}.title{text-align:center;font-weight:bold;font-size:16px}.subtitle{text-align:center;color:#555}.section{margin:16px 0 8px;font-weight:bold;border-bottom:2px solid #000}.quad{display:grid;grid-template-columns:1fr 1fr;gap:12px}.quad-box,.proveito,.honorarios,.total-geral{border:2px solid #ccc;border-radius:8px;padding:10px;text-align:center;margin:6px 0}.val{font-size:18px;font-weight:900}table{border-collapse:collapse;width:100%;font-size:10px}td,th{border:1px solid #d1d5db;padding:3px 5px;text-align:right}tr.cap{background:#dbeafe}.tab{overflow-x:auto}@media(max-width:700px){.quad{grid-template-columns:1fr}}</style></head><body><div class="paper">' + $("parecer").innerHTML.replace(/<table/g,'<div class="tab"><table').replace(/<\/table>/g,'</table></div>') + '</div></body></html>';
+  baixar(pag, nomeArq() + ".html", "text/html");
+  $("linkCompartilhado").style.display = "none";
+});
+
+$("btnCopyLink").addEventListener("click", function(){
+  var link = $("linkInput").value;
+  navigator.clipboard.writeText(link).then(function(){ log("✅ Link copiado! Envie para o juiz."); });
+});
+
+function baixar(conteudo, nome, tipo){
+  try { var a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([conteudo], {type: tipo})); a.download = nome; document.body.appendChild(a); a.click(); a.remove(); log("✅ Arquivo gerado: " + nome); }
+  catch(e){ avisar("Não consegui baixar. Use Copiar HTML."); }
+}
+function nomeArq(){ return "Auditoria_Financeira_"+($("numProcesso").value||"parecer").replace(/[^a-zA-Z0-9]/g,"_"); }
+$("btnExportWord").addEventListener("click", function(){
+  if(!CALC_RESULT) return avisar("Calcule primeiro.");
+  var doc = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"><style>body{font-family:"Times New Roman";font-size:12pt}table{border-collapse:collapse;width:100%;font-size:8pt}td,th{border:1px solid #999;padding:2px 4px;text-align:right}.title{text-align:center;font-weight:bold;font-size:14pt}.subtitle{text-align:center}.section{font-weight:bold;border-bottom:1px solid #000;margin-top:12pt}</style></head><body>' + $("parecer").innerHTML + '</body></html>';
+  baixar("\uFEFF" + doc, nomeArq() + ".doc", "application/msword");
+});
+
+if($("btnPreset") && /^#sentenca/i.test(location.hash)){ setTimeout(function(){ $("btnPreset").click(); if(/calcular/i.test(location.hash)) $("btnCalcular").click(); }, 300); }
+
+try {
+  var saved = localStorage.getItem("auditoria_dados");
+  if(saved){
+    var d = JSON.parse(saved);
+    if(d.processo) $("numProcesso").value = d.processo;
+    if(d.cliente) $("nomeCliente").value = d.cliente;
+    if(d.advogado) $("nomeAdv").value = d.advogado;
+    if(d.oab) $("oab").value = d.oab;
+    if(d.criterios) $("criteriosTexto").value = d.criterios;
+    if(d.fontes) $("fontesTexto").value = d.fontes;
+  }
+} catch(e){}
+
+function salvarDados(){
+  try {
+    localStorage.setItem("auditoria_dados", JSON.stringify({
+      processo: $("numProcesso").value,
+      cliente: $("nomeCliente").value,
+      advogado: $("nomeAdv").value,
+      oab: $("oab").value,
+      criterios: $("criteriosTexto").value,
+      fontes: $("fontesTexto").value
+    }));
+  } catch(e){}
+}
+$("numProcesso").addEventListener("change", salvarDados);
+$("nomeCliente").addEventListener("change", salvarDados);
+$("nomeAdv").addEventListener("change", salvarDados);
+$("oab").addEventListener("change", salvarDados);
+$("criteriosTexto").addEventListener("change", salvarDados);
+$("fontesTexto").addEventListener("change", salvarDados);
+</script>
+</body>
+</html>

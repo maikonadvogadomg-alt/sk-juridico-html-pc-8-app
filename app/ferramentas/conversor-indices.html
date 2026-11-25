@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Conversor de Índices</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+<style>
+/* VOICE work: ferramenta de cálculo judicial
+   IDEA a folha de índices da contadoria: tabela colada vira série mês a mês no padrão do Bacen
+   PICTURE gráfico grande das variações mensais com a linha do acumulado
+   COLOUR gelo #dff1f7, tinta #06222e, rosa #ff2e7e; noite #06222e
+   TYPE Space Grotesk 500/700 + Inter
+   LAYOUT laptop: entrada à esquerda, gráfico e resumo à direita; celular: título, gráfico, entrada */
+:root{color-scheme:light dark;--bg:light-dark(#dff1f7,#06222e);--ink:light-dark(#06222e,#dff1f7);--card:light-dark(#ffffff,#0c3242);--line:light-dark(#9cc6d4,#2c5868);--soft:light-dark(#3c6474,#9fc3d0);--acc:#ff2e7e;--ok:light-dark(#0a7a55,#5fe0b0);--warn:light-dark(#a3470b,#ffb37a)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+html,body{overscroll-behavior:none}
+body{background:var(--bg);color:var(--ink);font:16px/1.55 Inter,system-ui,sans-serif;overflow-x:clip;margin:0}
+.band{padding-block:clamp(20px,3vw,40px);padding-left:max(5vw,16px,env(safe-area-inset-left,0px));padding-right:max(5vw,16px,env(safe-area-inset-right,0px));max-width:1300px;margin:0 auto}
+h1{font:700 clamp(32px,5vw,48px)/1.05 'Space Grotesk',sans-serif;letter-spacing:-.02em;margin:0 0 6px}
+h2{font:700 21px/1.2 'Space Grotesk',sans-serif;margin:0 0 10px}
+.sub{color:var(--soft);margin:0 0 20px;max-width:68ch}
+.grid{display:grid;gap:18px;grid-template-columns:minmax(0,1fr)}
+@media(min-width:900px){.grid{grid-template-columns:minmax(0,5fr) minmax(0,6fr)}}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px}
+label{display:block;font-weight:600;font-size:14px;margin:12px 0 4px}
+textarea,select,input{font:16px/1.4 Inter,sans-serif;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px 10px;width:100%}
+textarea{min-height:230px;font-family:ui-monospace,Menlo,monospace;font-size:14px;resize:vertical}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
+.row>*{flex:1 1 140px}
+button{font:600 15px Inter,sans-serif;min-height:44px;padding:0 14px;border-radius:8px;border:1px solid var(--ink);background:transparent;color:var(--ink);cursor:pointer;flex:0 0 auto}
+button.main{background:var(--acc);border-color:var(--acc);color:#fff}
+button:hover{filter:brightness(1.08)}button:active{transform:translateY(1px)}
+.fig{position:relative;height:300px}.fig>svg{position:absolute;inset:0;width:100%;height:100%}
+svg text{font:13px Inter,sans-serif;fill:var(--soft);paint-order:stroke;stroke:var(--card);stroke-width:4px}
+.nums{display:grid;grid-template-columns:repeat(auto-fit,minmax(9em,1fr));gap:10px;margin-top:10px}
+.num b{display:block;font:700 26px/1.1 'Space Grotesk',sans-serif;white-space:nowrap}
+.num span{font-size:13px;color:var(--soft)}
+.msg{font-size:14px;margin-top:10px}.msg .w{color:var(--warn)}.msg .o{color:var(--ok)}
+.scroll{overflow-x:auto;max-height:340px;overflow-y:auto;border:1px solid var(--line);border-radius:8px;margin-top:10px}
+table{border-collapse:collapse;width:100%;font-size:14px;font-variant-numeric:tabular-nums}
+th,td{padding:6px 10px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{position:sticky;top:0;background:var(--card)}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+.tabs button{min-height:38px;font-size:14px}.tabs button.on{background:var(--ink);color:var(--bg)}
+small{color:var(--soft);font-size:13px}
+@media(max-width:600px){table{font-size:13px}th,td{padding:6px 5px}}
+</style>
+
+<div class="band">
+  <h1>Conversor de índices</h1>
+  <p class="sub">Cole qualquer tabela de índices (TJMG, IBGE, PDF, Excel, site) e ela sai no mesmo formato da série do Banco Central: <b>data;valor</b>, mês a mês, em % ao mês. Depois é só importar na sua planilha.</p>
+
+  <div class="grid">
+    <div class="panel">
+      <h2>1. A tabela que você tem</h2>
+      <label for="entrada">Cole aqui (do jeito que veio)</label>
+      <textarea id="entrada" spellcheck="false"></textarea>
+      <div class="row">
+        <input type="file" id="arquivo" accept=".csv,.txt,.json,.xlsx,.xls,.tsv">
+      </div>
+      <label for="tipo">O que são os números da tabela?</label>
+      <select id="tipo">
+        <option value="auto">Descobrir sozinho</option>
+        <option value="var">Variação % do mês (ex.: 0,45)</option>
+        <option value="indice">Número-índice (ex.: 6.512,34, sobe com o tempo)</option>
+        <option value="fator">Fator de atualização TJMG (cai com o tempo)</option>
+      </select>
+      <div class="row">
+        <button class="main" id="converter">Converter</button>
+        <button id="limpar">Limpar</button>
+      </div>
+      <div class="msg" id="msg"></div>
+    </div>
+
+    <div class="panel">
+      <h2 id="titGraf">Variação mensal</h2>
+      <div class="fig" id="fig"><svg id="svg"></svg></div>
+      <div class="nums" id="nums"></div>
+    </div>
+  </div>
+</div>
+
+<div class="band">
+  <div class="grid">
+    <div class="panel">
+      <h2>2. Saída no formato do Bacen</h2>
+      <div class="tabs" id="tabs">
+        <button data-f="csv" class="on">CSV (data;valor)</button>
+        <button data-f="json">JSON da API</button>
+        <button data-f="planilha">Para colar no Excel</button>
+        <button data-f="sgs">Igual ao arquivo do site do Bacen (mês/ano)</button>
+      </div>
+      <label for="casas">Casas decimais</label>
+      <select id="casas"><option>2</option><option selected>4</option><option>6</option></select>
+      <textarea id="saida" readonly spellcheck="false"></textarea>
+      <div class="row">
+        <button class="main" id="copiar">Copiar</button>
+        <button id="baixar">Baixar arquivo</button>
+      </div>
+      <small id="okCopia"></small>
+    </div>
+
+    <div class="panel">
+      <h2>3. Conferir um valor (memória de cálculo)</h2>
+      <div class="row">
+        <div><label for="valor">Valor (R$)</label><input id="valor" inputmode="decimal" value="6.000,00"></div>
+        <div><label for="juros">Juros simples (% ao mês)</label><input id="juros" inputmode="decimal" value="1"></div>
+      </div>
+      <div class="row">
+        <div><label for="de">De (mês)</label><select id="de"></select></div>
+        <div><label for="ate">Até (mês)</label><select id="ate"></select></div>
+      </div>
+      <div class="nums" id="res"></div>
+      <div class="scroll"><table><thead><tr><th>Mês</th><th>Índice %</th><th>Fator acum.</th><th>Corrigido</th><th>Juros</th><th>Total</th></tr></thead><tbody id="mem"></tbody></table></div>
+      <div class="row"><button id="copiarMem">Copiar memória (para o Anexo)</button></div>
+      <small>Correção pelo índice mês a mês e juros simples sobre o valor corrigido. Confira sempre com o que a sentença manda.</small>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+{
+const $ = (i) => document.getElementById(i);
+const MESES = { jan: 1, fev: 2, feb: 2, mar: 3, abr: 4, apr: 4, mai: 5, may: 5, jun: 6, jul: 7, ago: 8, aug: 8, set: 9, sep: 9, out: 10, oct: 10, nov: 11, dez: 12, dec: 12 };
+const NOMES = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+const EXEMPLO = 'EXEMPLO com números fictícios: apague e cole a sua tabela\nAno\tJan\tFev\tMar\tAbr\tMai\tJun\n2024\t0,57\t0,81\t0,19\t0,37\t0,46\t0,25\n\njul/2024;0,26%\n08/2024;-0,14\n01/09/2024 0,48\nOutubro de 2024 — 0,61';
+let serie = [], formato = 'csv';
+
+const num = (s) => { s = String(s).replace(/[%\sR$]/g, ''); if (!/^-?[\d.,]+$/.test(s) || !/\d/.test(s)) return null;
+  const v = s.lastIndexOf(','), p = s.lastIndexOf('.');
+  if (v > -1 && p > -1) s = v > p ? s.replace(/\./g, '').replace(',', '.') : s.replace(/,/g, '');
+  else if (v > -1) s = s.replace(',', '.');
+  const n = parseFloat(s); return isNaN(n) ? null : n; };
+const ano = (a) => { a = +a; return a < 100 ? (a > 50 ? 1900 + a : 2000 + a) : a; };
+const mesDe = (t) => MESES[String(t).toLowerCase().normalize('NFD').replace(/[^a-z]/g, '').slice(0, 3)];
+const chave = (y, m) => y * 100 + m;
+const fmtMes = (k) => NOMES[k % 100 - 1] + '/' + Math.floor(k / 100);
+const br = (n, c) => n.toLocaleString('pt-BR', { minimumFractionDigits: c, maximumFractionDigits: c });
+
+function ler(texto) {
+  const achados = new Map(); const avisos = []; let cab = null;
+  for (const bruta of String(texto).split(/\r?\n/)) {
+    const l = bruta.trim(); if (!l) continue;
+    const tk = l.split(/\t|;|\||\s{2,}|,(?=\s)/).map((x) => x.trim()).filter(Boolean);
+    const ms = tk.map(mesDe).filter(Boolean);
+    if (ms.length >= 3 && tk.filter((x) => num(x) !== null).length < 2) { cab = tk.map(mesDe); continue; }
+    const pos = (y, m, v) => { if (m >= 1 && m <= 12 && y > 1900 && y < 2200 && v !== null) { const k = chave(y, m); if (achados.has(k)) avisos.push(fmtMes(k) + ' apareceu 2 vezes (fiquei com o último)'); achados.set(k, v); } };
+    // tabela em matriz: ano + vários meses
+    if (/^(19|20)\d\d$/.test(tk[0]) && tk.length >= 3 && tk.slice(1).every((x) => num(x) !== null || x === '-')) {
+      const y = +tk[0]; const meses = cab ? cab.filter(Boolean) : null;
+      const resto = tk.slice(1); if (resto.length > 1 && resto[resto.length - 1] === tk[0]) resto.pop(); // o PDF do TJMG repete o ano no fim da linha
+      resto.forEach((x, i) => { if (x !== '-' && i < 12) pos(y, meses && meses[i] ? meses[i] : i + 1, num(x)); }); continue;
+    }
+    let m = null, y = null, resto = l, r;
+    if ((r = l.match(/\b(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})\b/))) { m = +r[2]; y = ano(r[3]); }
+    else if ((r = l.match(/\b((?:19|20)\d\d)[\/.-](\d{1,2})\b/))) { y = +r[1]; m = +r[2]; }
+    else if ((r = l.match(/\b(\d{1,2})[\/.-]((?:19|20)\d\d)\b/))) { m = +r[1]; y = +r[2]; }
+    else if ((r = l.match(/([a-zç]{3,})\.?[\s\/.-]*(?:de\s+)?(\d{4}|\d{2})\b/i)) && mesDe(r[1])) { m = mesDe(r[1]); y = ano(r[2]); }
+    if (!r || !m) continue;
+    resto = l.replace(r[0], ' ');
+    const vals = resto.split(/[\s;|\t]+|—|–/).map(num).filter((x) => x !== null);
+    if (vals.length) pos(y, m, vals[vals.length - 1]);
+  }
+  return { pts: [...achados.entries()].sort((a, b) => a[0] - b[0]), avisos };
+}
+// Tabela TJMG copiada por COLUNA (ex.: extrator do Cálculo Jurídico): "ANO 1964 1965 …" e depois "DEZ v1964 v1965 …", "NOV …"
+function lerColunasPorMes(texto){
+  var MES3 = {JAN:1,FEV:2,MAR:3,ABR:4,MAI:5,JUN:6,JUL:7,AGO:8,SET:9,OUT:10,NOV:11,DEZ:12};
+  var tks = String(texto).replace(/ /g," ").split(/\s+/).filter(Boolean);
+  var ref = String(texto).match(/V[áa]lida\s+para:?\s*([A-Za-zçÇ]+)\s+(?:DE\s+)?(\d{4})/i), refY = null, refM = null;
+  if(ref){ var mm = MES3[ref[1].toUpperCase().normalize("NFD").replace(/[^A-Z]/g,"").slice(0,3)]; if(mm){ refY = +ref[2]; refM = mm; } }
+  var ehNum = function(t){ return /^\d+,\d{4,}$/.test(t); };
+  var out = {}, n = 0, anos = null, i = 0;
+  while(i < tks.length){
+    var t = tks[i].toUpperCase();
+    if(t === "ANO"){ anos = []; i++; while(i < tks.length && /^(19|20)\d\d$/.test(tks[i])){ anos.push(+tks[i]); i++; } continue; }
+    var m = MES3[t];
+    if(anos && anos.length && m && tks[i].length === 3){
+      var j = i + 1, pulos = 0, vals = [];
+      while(j < tks.length && !ehNum(tks[j]) && pulos < 3 && !MES3[tks[j].toUpperCase()] && tks[j].toUpperCase() !== "ANO"){ j++; pulos++; }
+      while(j < tks.length && ehNum(tks[j])){ vals.push(tks[j]); j++; }
+      if(vals.length){
+        var ys = anos.slice();
+        if(vals.length === ys.length - 1){
+          var ultimoMes = refM ? (refM === 1 ? 12 : refM - 1) : null, ultimoAno = refM ? (refM === 1 ? refY - 1 : refY) : null;
+          if(ultimoAno && ys[ys.length-1] === ultimoAno && m > ultimoMes) ys.pop(); else ys.shift();
+        }
+        if(vals.length === ys.length){ for(var k=0;k<ys.length;k++){ out[ys[k]+"-"+String(m).padStart(2,"0")] = parseFloat(vals[k].replace(",", ".")); n++; } }
+      }
+      i = j; continue;
+    }
+    i++;
+  }
+  return {mapa: out, total: n};
+}
+
+function proxMes(k) { let y = Math.floor(k / 100), m = k % 100 + 1; if (m > 12) { m = 1; y++; } return chave(y, m); }
+function tipoAuto(v) {
+  if (v.some((x) => x <= 0)) return 'var';
+  let sobe = 0, desce = 0; for (let i = 1; i < v.length; i++) { if (v[i] > v[i - 1]) sobe++; else if (v[i] < v[i - 1]) desce++; }
+  const tudo = v.length - 1, grande = v.every((x) => x > 0.9);
+  if (v.length >= 3 && grande && desce >= tudo * 0.9) return 'fator';
+  if (v.length >= 24 && desce >= tudo * 0.75) return 'fator';
+  if (v.length >= 3 && grande && sobe >= tudo * 0.9 && v.some((x) => x > 25)) return 'indice';
+  if (v.every((x) => Math.abs(x) < 25)) return 'var';
+  return sobe >= tudo / 2 ? 'indice' : 'fator';
+}
+function converter() {
+  let { pts, avisos } = ler($('entrada').value);
+  { const col = lerColunasPorMes($('entrada').value); if (col.total > pts.length) pts = Object.keys(col.mapa).sort().map((k) => [+k.slice(0, 4) * 100 + +k.slice(5), col.mapa[k]]); }
+  if (!pts.length) { serie = []; $('msg').innerHTML = '<span class="w">Não achei nenhum mês com valor. Confira se a tabela tem mês/ano e número em cada linha.</span>'; render(); return; }
+  let tipo = $('tipo').value; const vals = pts.map((p) => p[1]);
+  if (tipo === 'auto') tipo = tipoAuto(vals);
+  if (tipo === 'fator') { const rf = $('entrada').value.match(/V[áa]lida\s+para:?\s*([A-Za-zçÇ]+)\s+(?:DE\s+)?(\d{4})/i);
+    if (rf && mesDe(rf[1])) { const k = chave(+rf[2], mesDe(rf[1])); if (!pts.some((x) => x[0] === k)) { pts.push([k, 1]); pts.sort((a, b) => a[0] - b[0]); } } }
+  if (tipo === 'var') serie = pts.map(([k, v]) => ({ k, v }));
+  else { serie = []; for (let i = 1; i < pts.length; i++) { const a = pts[i - 1][1], b = pts[i][1]; serie.push(tipo === 'indice' ? { k: pts[i][0], v: (b / a - 1) * 100 } : { k: pts[i - 1][0], v: (a / b - 1) * 100 }); } }
+  const falta = []; for (let i = 1; i < serie.length; i++) { let k = proxMes(serie[i - 1].k); while (k < serie[i].k && falta.length < 30) { falta.push(fmtMes(k)); k = proxMes(k); } }
+  const nomeTipo = { var: 'variação % do mês', indice: 'número-índice (converti para % do mês)', fator: 'fator TJMG (converti para % do mês)' }[tipo];
+  $('msg').innerHTML = '<span class="o">✓ ' + serie.length + ' meses, de ' + fmtMes(serie[0].k) + ' a ' + fmtMes(serie[serie.length - 1].k) + '. Li como: ' + nomeTipo + '.</span>' +
+    (falta.length ? '<br><span class="w">Faltam meses no meio: ' + falta.join(', ') + '</span>' : '') +
+    (avisos.length ? '<br><span class="w">' + avisos.slice(0, 5).join('<br>') + '</span>' : '');
+  const op = serie.map((s, i) => '<option value="' + i + '">' + fmtMes(s.k) + '</option>').join('');
+  $('de').innerHTML = op; $('ate').innerHTML = op; $('ate').value = serie.length - 1;
+  try { localStorage.setItem('conv:entrada', $('entrada').value); } catch (e) {}
+  render();
+}
+function saida() {
+  const c = +$('casas').value; if (!serie.length) return '';
+  const d = (k) => '01/' + String(k % 100).padStart(2, '0') + '/' + Math.floor(k / 100);
+  if (formato === 'json') return JSON.stringify(serie.map((s) => ({ data: d(s.k), valor: s.v.toFixed(c) })), null, 1);
+  if (formato === 'planilha') return 'data\tvalor\n' + serie.map((s) => d(s.k) + '\t' + br(s.v, c)).join('\n');
+  if (formato === 'sgs') return 'Data;Índice convertido para variação mensal - % a.m.\n' + serie.map((s) => String(s.k % 100).padStart(2, '0') + '/' + Math.floor(s.k / 100) + ';' + br(s.v, Math.min(c, 2))).join('\n') + '\nFonte;Tabela informada (convertida)';
+  return 'data;valor\n' + serie.map((s) => d(s.k) + ';' + br(s.v, c)).join('\n');
+}
+function grafico() {
+  const s = $('svg'), W = s.clientWidth, H = s.clientHeight;
+  if (!serie.length) { s.innerHTML = '<text x="' + W / 2 + '" y="' + H / 2 + '" text-anchor="middle">Cole a tabela e toque em Converter</text>'; return; }
+  const L = 44, R = 12, T = 14, B = 26, n = serie.length, vs = serie.map((x) => x.v);
+  const mx = Math.max(0.1, ...vs), mn = Math.min(0, ...vs), y = (v) => T + (mx - v) / (mx - mn) * (H - T - B);
+  const bw = (W - L - R) / n; let g = '';
+  [mn, 0, mx].filter((v, i, a) => a.indexOf(v) === i).forEach((v) => { g += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + y(v) + '" y2="' + y(v) + '" stroke="var(--line)"/><text x="' + (L - 6) + '" y="' + (y(v) + 4) + '" text-anchor="end">' + br(v, 2) + '</text>'; });
+  serie.forEach((p, i) => { const x = L + i * bw, y0 = y(0), y1 = y(p.v); g += '<rect x="' + (x + bw * .12) + '" width="' + Math.max(1, bw * .76) + '" y="' + Math.min(y0, y1) + '" height="' + Math.max(1, Math.abs(y1 - y0)) + '" fill="' + (p.v < 0 ? 'var(--soft)' : 'var(--acc)') + '"/>'; });
+  const passo = Math.ceil(n / Math.max(2, Math.floor((W - L) / 70)));
+  serie.forEach((p, i) => { if (i % passo === 0) g += '<text x="' + (L + i * bw + bw / 2) + '" y="' + (H - 6) + '" text-anchor="middle">' + fmtMes(p.k) + '</text>'; });
+  s.innerHTML = g;
+}
+function calcular() {
+  const tb = $('mem'), r = $('res'); if (!serie.length) { tb.innerHTML = ''; r.innerHTML = ''; return; }
+  const v0 = num($('valor').value) || 0, j = (num($('juros').value) || 0) / 100;
+  let a = +$('de').value, b = +$('ate').value; if (a > b) [a, b] = [b, a];
+  let f = 1, linhas = [], mesesJ = 0;
+  for (let i = a; i <= b; i++) { f *= 1 + serie[i].v / 100; mesesJ++; const cor = v0 * f, ju = cor * j * mesesJ; linhas.push([fmtMes(serie[i].k), serie[i].v, f, cor, ju, cor + ju]); }
+  const u = linhas[linhas.length - 1];
+  r.innerHTML = [['Fator acumulado', br(u[2], 6)], ['Valor corrigido', 'R$ ' + br(u[3], 2)], ['Juros (' + mesesJ + ' meses)', 'R$ ' + br(u[4], 2)], ['Total', 'R$ ' + br(u[5], 2)]].map((x) => '<div class="num"><span>' + x[0] + '</span><b>' + x[1] + '</b></div>').join('');
+  tb.innerHTML = linhas.map((l) => '<tr><td>' + l[0] + '</td><td>' + br(l[1], 4) + '</td><td>' + br(l[2], 6) + '</td><td>' + br(l[3], 2) + '</td><td>' + br(l[4], 2) + '</td><td>' + br(l[5], 2) + '</td></tr>').join('');
+  calcular.memoria = 'Mês\tÍndice %\tFator acumulado\tValor corrigido\tJuros\tTotal\n' + linhas.map((l) => [l[0], br(l[1], 4), br(l[2], 6), br(l[3], 2), br(l[4], 2), br(l[5], 2)].join('\t')).join('\n');
+}
+function render() {
+  $('saida').value = saida(); grafico(); calcular();
+  if (serie.length) { let f = 1; serie.forEach((s) => { f *= 1 + s.v / 100; });
+    $('titGraf').textContent = 'Variação mensal: ' + br((f - 1) * 100, 2) + '% no período';
+    $('nums').innerHTML = [['Meses', serie.length], ['Acumulado', br((f - 1) * 100, 2) + '%'], ['Maior mês', br(Math.max(...serie.map((s) => s.v)), 2) + '%']].map((x) => '<div class="num"><span>' + x[0] + '</span><b>' + x[1] + '</b></div>').join('');
+  } else { $('titGraf').textContent = 'Variação mensal'; $('nums').innerHTML = ''; }
+}
+async function copiar(t, el) { try { await navigator.clipboard.writeText(t); el.textContent = '✓ Copiado.'; } catch (e) { el.textContent = 'Não consegui copiar sozinho: segure no texto e copie.'; } }
+
+$('converter').onclick = converter;
+$('limpar').onclick = () => { $('entrada').value = ''; serie = []; $('msg').textContent = ''; render(); $('entrada').focus(); };
+$('tipo').onchange = converter; $('casas').onchange = render;
+['valor', 'juros', 'de', 'ate'].forEach((i) => { $(i).oninput = calcular; $(i).onchange = calcular; });
+$('tabs').onclick = (e) => { const b = e.target.closest('button'); if (!b) return; formato = b.dataset.f; [...$('tabs').children].forEach((x) => x.classList.toggle('on', x === b)); render(); };
+$('copiar').onclick = () => copiar($('saida').value, $('okCopia'));
+$('copiarMem').onclick = () => copiar(calcular.memoria || '', $('okCopia'));
+$('baixar').onclick = () => { try { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([$('saida').value], { type: (formato === 'json' ? 'application/json' : 'text/csv') + ';charset=utf-8' })); a.download = 'indices-bacen.' + (formato === 'json' ? 'json' : 'csv'); a.click(); $('okCopia').textContent = 'Se não baixou, use Copiar.'; } catch (e) { $('okCopia').textContent = 'Use Copiar.'; } };
+$('arquivo').onchange = async (e) => {
+  const f = e.target.files[0]; if (!f) return;
+  try {
+    if (/\.xlsx?$/i.test(f.name) && window.XLSX) { const wb = XLSX.read(await f.arrayBuffer()); $('entrada').value = XLSX.utils.sheet_to_csv(wb.Sheets[wb.SheetNames[0]], { FS: '\t', rawNumbers: false }); }
+    else { let t = await f.text(); try { const j = JSON.parse(t); if (Array.isArray(j)) t = j.map((x) => (x.data || x.date || x.mes) + ';' + (x.valor ?? x.value ?? x.indice)).join('\n'); } catch (er) {} $('entrada').value = t; }
+    converter();
+  } catch (er) { $('msg').innerHTML = '<span class="w">Não consegui ler esse arquivo. Abra ele, copie a tabela e cole no campo.</span>'; }
+};
+new ResizeObserver(grafico).observe($('fig'));
+let salvo = null; try { salvo = localStorage.getItem('conv:entrada'); } catch (e) {}
+$('entrada').value = salvo || EXEMPLO; converter();
+}
+</script>

@@ -1,0 +1,55 @@
+{
+  "name": "sk-juridico-html-pc",
+  "version": "1.0.0",
+  "description": "SK Jurídico HTML para PC — leve, sem servidor, com o motor do SK Jurídico",
+  "author": "Maikon",
+  "private": true,
+  "main": "electron/main.cjs",
+  "scripts": {
+    "programa": "electron .",
+    "exe": "electron-builder --win nsis portable --x64 --publish never"
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "msedge-tts": ">=1.3.4",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "electron": "33.2.1",
+    "electron-builder": "25.1.8"
+  },
+  "build": {
+    "appId": "com.maikon.skjuridico.html.pc",
+    "productName": "SK Jurídico HTML",
+    "executableName": "SKJuridicoHTML",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "app/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "asar": false,
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "app/icons/icon-512.png"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "SK Jurídico HTML",
+      "artifactName": "SKJuridicoHTML-Instalar.exe",
+      "include": "electron/instalar.nsh"
+    },
+    "portable": {
+      "artifactName": "SKJuridicoHTML-sem-instalar.exe"
+    }
+  },
+  "portaDoPrograma": 7720
+}

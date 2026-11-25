@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Raio-X de ZIP</title>
+<style>
+/* 🩻 Raio-X de ZIP — abre ZIP GIGANTE no celular SEM descompactar tudo (lê só o "índice" do zip e os arquivos pequenos que importam).
+   Entra em zip dentro de zip. Gera o PLANO (mapa do projeto) e um ZIP PEQUENO para mandar ao Claude. Senhas e chaves saem TAMPADAS. */
+:root{color-scheme:light dark;--bg:light-dark(#eef3f7,#0e151c);--card:light-dark(#fff,#16212b);--ink:light-dark(#0f1a24,#e3edf5);--soft:light-dark(#4f6272,#93a7b8);--line:light-dark(#cbd8e3,#2a3a48);--acc:#0e8f7e;--warn:light-dark(#a3470b,#ffb37a);--ok:light-dark(#0a7a55,#5fe0b0)}
+*{box-sizing:border-box;min-width:0}
+html,body{overscroll-behavior:none}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,sans-serif}
+.band{max-width:900px;margin:0 auto;padding:14px max(4vw,14px)}
+h1{font-size:clamp(26px,6vw,36px);margin:0 0 4px;line-height:1.1}
+.sub{color:var(--soft);margin:0 0 12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:12px}
+label{display:block;font-weight:600;font-size:14px;margin:8px 0 4px}
+input[type=number]{font:16px system-ui;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px;width:120px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px}
+button{font:600 15px system-ui;min-height:46px;padding:0 14px;border-radius:8px;border:1px solid var(--ink);background:transparent;color:var(--ink);cursor:pointer}
+button.main{background:var(--acc);border-color:var(--acc);color:#fff}
+button:disabled{opacity:.5}
+.barra{height:10px;background:var(--line);border-radius:6px;overflow:hidden;margin-top:8px}.barra i{display:block;height:100%;width:0;background:var(--acc);transition:width .2s}
+.msg{font-size:14px;margin-top:8px;white-space:pre-wrap}.w{color:var(--warn)}.o{color:var(--ok)}
+pre{white-space:pre-wrap;overflow-wrap:anywhere;font:13px/1.45 ui-monospace,monospace;max-height:420px;overflow:auto;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px}
+.nums{display:grid;grid-template-columns:repeat(auto-fit,minmax(8em,1fr));gap:8px}.nums div{border:1px solid var(--line);border-radius:8px;padding:8px}.nums b{display:block;font-size:22px}
+small{color:var(--soft)}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div class="band">
+  <h1>🩻 Raio-X de ZIP</h1>
+  <p class="sub">Escolha o ZIP grande. Ele <b>não descompacta tudo</b>: lê só o índice e os arquivos pequenos que importam (código, manuais, configurações). Entra em zip dentro de zip. No fim você baixa um <b>ZIP pequeno com o plano</b> para mandar ao Claude.</p>
+
+  <div class="card">
+    <input type="file" id="arq" accept=".zip,application/zip,application/x-zip-compressed,*/*">
+    <details style="margin-top:8px"><summary><b>⚙️ Opções</b></summary>
+      <label><input type="checkbox" id="opZipDentro" checked> Abrir os zips que estão dentro do zip</label>
+      <label>Abrir zip de dentro só se tiver até <input type="number" id="opMaxZip" value="600"> MB</label>
+      <label>Tamanho máximo de cada arquivo de texto levado no ZIP pequeno: <input type="number" id="opMaxArq" value="300"> KB</label>
+      <label>Tamanho máximo do ZIP pequeno (texto): <input type="number" id="opMaxTot" value="12"> MB</label>
+      <label><input type="checkbox" id="opNode"> Incluir pastas pesadas (node_modules, .git, dist…) — normalmente NÃO</label>
+    </details>
+    <div class="row"><button class="main" id="ir" disabled>🩻 Fazer o raio-X</button><button id="parar" disabled>⏹ Parar</button></div>
+    <div class="barra"><i id="bar"></i></div>
+    <div class="msg" id="msg">Escolha o arquivo ZIP.</div>
+  </div>
+
+  <div class="card" id="saida" hidden>
+    <div class="nums" id="nums"></div>
+    <div class="row"><button class="main" id="baixar">⬇ Baixar o ZIP pequeno (plano + arquivos importantes)</button><button id="copiar">Copiar o plano</button></div>
+    <small id="okS"></small>
+    <h2 style="font-size:18px;margin:12px 0 6px">📋 Plano</h2>
+    <pre id="plano"></pre>
+  </div>
+</div>
+
+<script>
+{
+const $ = (i) => document.getElementById(i);
+const fmtB = (n) => n >= 1e9 ? (n / 1e9).toFixed(2) + ' GB' : n >= 1e6 ? (n / 1e6).toFixed(1) + ' MB' : n >= 1e3 ? (n / 1e3).toFixed(0) + ' KB' : n + ' B';
+let parar = false;
+
+// ───────── leitura do ZIP pelo índice (central directory), com ZIP64 ─────────
+const u16 = (d, o) => d.getUint16(o, true), u32 = (d, o) => d.getUint32(o, true), u64 = (d, o) => d.getUint32(o, true) + d.getUint32(o + 4, true) * 4294967296;
+async function bytes(blob, ini, fim) { return new DataView(await blob.slice(ini, fim).arrayBuffer()); }
+async function indice(blob) {
+  const tam = blob.size, ler = Math.min(tam, 66000 + 22), base = tam - ler, d = await bytes(blob, base, tam);
+  let p = -1; for (let i = ler - 22; i >= 0; i--) if (u32(d, i) === 0x06054b50) { p = i; break; }
+  if (p < 0) throw new Error('não parece um ZIP (não achei o índice no fim do arquivo)');
+  let n = u16(d, p + 10), cdTam = u32(d, p + 12), cdOff = u32(d, p + 16);
+  if (n === 0xffff || cdTam === 0xffffffff || cdOff === 0xffffffff) { // ZIP64
+    const loc = p - 20; if (loc >= 0 && u32(d, loc) === 0x07064b50) { const off64 = u64(d, loc + 8); const z = await bytes(blob, off64, off64 + 56); if (u32(z, 0) === 0x06064b50) { n = u64(z, 32); cdTam = u64(z, 40); cdOff = u64(z, 48); } }
+  }
+  const cd = await bytes(blob, cdOff, cdOff + cdTam), dec8 = new TextDecoder('utf-8'), decL = new TextDecoder('ibm866');
+  const out = []; let o = 0;
+  while (o + 46 <= cd.byteLength && u32(cd, o) === 0x02014b50) {
+    const flag = u16(cd, o + 8), met = u16(cd, o + 10); let comp = u32(cd, o + 20), unc = u32(cd, o + 24); const nl = u16(cd, o + 28), el = u16(cd, o + 30), cl = u16(cd, o + 32); let loff = u32(cd, o + 42);
+    const nb = new Uint8Array(cd.buffer, cd.byteOffset + o + 46, nl); const nome = (flag & 0x800 ? dec8 : (() => { try { return new TextDecoder('utf-8', { fatal: true }); } catch (e) { return dec8; } })()).decode(nb);
+    let e = o + 46 + nl; const eFim = e + el;
+    while (e + 4 <= eFim) { const id = u16(cd, e), sz = u16(cd, e + 2); if (id === 1) { let q = e + 4; if (unc === 0xffffffff) { unc = u64(cd, q); q += 8; } if (comp === 0xffffffff) { comp = u64(cd, q); q += 8; } if (loff === 0xffffffff) { loff = u64(cd, q); } } e += 4 + sz; }
+    out.push({ nome, met, comp, unc, loff, pasta: nome.endsWith('/') });
+    o = eFim + cl;
+  }
+  return out;
+}
+async function dadosDe(blob, ent) {
+  const h = await bytes(blob, ent.loff, ent.loff + 30); if (u32(h, 0) !== 0x04034b50) throw new Error('cabeçalho estranho em ' + ent.nome);
+  const ini = ent.loff + 30 + u16(h, 26) + u16(h, 28), bruto = blob.slice(ini, ini + ent.comp);
+  if (ent.met === 0) return bruto;
+  if (ent.met === 8) return await new Response(bruto.stream().pipeThrough(new DecompressionStream('deflate-raw'))).blob();
+  throw new Error('compressão ' + ent.met + ' não suportada');
+}
+
+// ───────── o que importa ─────────
+const PESADAS = /(^|\/)(node_modules|\.git|\.cache|\.local|\.upm|\.pnpm-store|dist|build|\.next|\.turbo|coverage|__pycache__|\.gradle|\.expo)(\/|$)/;
+const TEXTO = /\.(md|txt|json|jsonc|ts|tsx|js|jsx|mjs|cjs|html|htm|css|scss|py|sql|yml|yaml|toml|ini|cfg|sh|bat|ps1|xml|csv|env\.example|prisma|graphql|vue|svelte|kt|java|gradle|properties|nsh)$/i;
+const NOMES_BONS = /(^|\/)(package\.json|replit\.md|readme[^/]*|manual[^/]*|leia-me[^/]*|\.replit|replit\.nix|netlify\.toml|vercel\.json|capacitor\.config\.[jt]s|vite\.config\.[jt]s|tsconfig\.json|drizzle\.config\.[jt]s|schema\.[a-z]+|\.env\.example)$/i;
+const SEGREDO_ARQ = /(^|\/)(\.env(\.[a-z]+)?|local\.config\.json|secrets?\.json|credentials?\.json|id_rsa[^/]*|.*\.pem|.*\.key)$/i;
+const PADROES = [/sk-[A-Za-z0-9_-]{16,}/g, /sk-or-v1-[A-Za-z0-9]{20,}/g, /AIza[0-9A-Za-z_-]{30,}/g, /sb_secret_[A-Za-z0-9_-]{10,}/g, /sbp_[A-Za-z0-9]{20,}/g, /gh[pousr]_[A-Za-z0-9]{20,}/g, /gsk_[A-Za-z0-9]{20,}/g, /xox[baprs]-[A-Za-z0-9-]{10,}/g, /eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}/g, /(postgres(?:ql)?|mysql|mongodb(?:\+srv)?):\/\/[^\s:'"]+:[^\s@'"]+@/g, /("?(?:password|senha|secret|api[_-]?key|token)"?\s*[:=]\s*["'])[^"']{6,}(["'])/gi];
+function tampar(t) { let n = 0; for (const re of PADROES) t = t.replace(re, (...g) => { n++; const a = g[1], b = g[2]; return typeof a === 'string' && typeof b === 'string' ? a + '***TAMPADO***' + b : '***TAMPADO***'; }); return { t, n }; }
+
+// ───────── zip pequeno (escritor simples, com compressão) ─────────
+const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+const crc32 = (u) => { let c = 0xffffffff; for (let i = 0; i < u.length; i++) c = CRC[(c ^ u[i]) & 0xff] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
+async function zipar(arquivos) {
+  const enc = new TextEncoder(), partes = [], central = []; let off = 0;
+  for (const f of arquivos) {
+    const dados = typeof f.dados === 'string' ? enc.encode(f.dados) : f.dados, nome = enc.encode(f.nome), crc = crc32(dados);
+    const comp = new Uint8Array(await new Response(new Blob([dados]).stream().pipeThrough(new CompressionStream('deflate-raw'))).arrayBuffer());
+    const lh = new DataView(new ArrayBuffer(30)); [[0, 0x04034b50, 4], [4, 20, 2], [6, 0x800, 2], [8, 8, 2], [10, 0, 2], [12, 0x21, 2], [14, crc, 4], [18, comp.length, 4], [22, dados.length, 4], [26, nome.length, 2], [28, 0, 2]].forEach(([o, v, s]) => s === 4 ? lh.setUint32(o, v, true) : lh.setUint16(o, v, true));
+    partes.push(new Uint8Array(lh.buffer), nome, comp);
+    const ch = new DataView(new ArrayBuffer(46)); [[0, 0x02014b50, 4], [4, 20, 2], [6, 20, 2], [8, 0x800, 2], [10, 8, 2], [12, 0, 2], [14, 0x21, 2], [16, crc, 4], [20, comp.length, 4], [24, dados.length, 4], [28, nome.length, 2], [30, 0, 2], [32, 0, 2], [34, 0, 2], [36, 0, 2], [38, 0, 4], [42, off, 4]].forEach(([o, v, s]) => s === 4 ? ch.setUint32(o, v, true) : ch.setUint16(o, v, true));
+    central.push(new Uint8Array(ch.buffer), nome);
+    off += 30 + nome.length + comp.length;
+  }
+  const cdTam = central.reduce((a, b) => a + b.length, 0), fim = new DataView(new ArrayBuffer(22));
+  [[0, 0x06054b50, 4], [8, arquivos.length, 2], [10, arquivos.length, 2], [12, cdTam, 4], [16, off, 4]].forEach(([o, v, s]) => s === 4 ? fim.setUint32(o, v, true) : fim.setUint16(o, v, true));
+  return new Blob(partes.concat(central, [new Uint8Array(fim.buffer)]), { type: 'application/zip' });
+}
+
+// ───────── raio-X ─────────
+let resultado = null;
+async function raioX(file) {
+  parar = false; const op = { zipDentro: $('opZipDentro').checked, maxZip: +$('opMaxZip').value * 1e6, maxArq: +$('opMaxArq').value * 1e3, maxTot: +$('opMaxTot').value * 1e6, node: $('opNode').checked };
+  const todos = [], levados = [], rotas = [], envs = new Map(), hosts = new Map(), pacotes = [], erros = []; let tampados = 0, totLev = 0, pulPesadas = 0, segArq = [];
+  const status = (t, f) => { $('msg').textContent = t; if (f != null) $('bar').style.width = Math.round(f * 100) + '%'; };
+  async function visitar(blob, prefixo, nivel) {
+    const ents = await indice(blob);
+    for (let i = 0; i < ents.length; i++) {
+      if (parar) throw new Error('parado');
+      const e = ents[i], caminho = prefixo + e.nome; if (e.pasta) continue;
+      if (nivel === 0 && i % 50 === 0) status('Lendo o índice: ' + i + ' de ' + ents.length + ' arquivos…', i / ents.length * 0.9);
+      if (!op.node && PESADAS.test(caminho)) { pulPesadas++; continue; }
+      todos.push({ caminho, unc: e.unc, comp: e.comp });
+      if (/\.zip$/i.test(e.nome)) {
+        if (op.zipDentro && nivel < 3 && e.unc <= op.maxZip) { status('Abrindo zip de dentro: ' + caminho + ' (' + fmtB(e.unc) + ')…'); try { await visitar(await dadosDe(blob, e), caminho + '!/', nivel + 1); } catch (er) { erros.push(caminho + ': ' + er.message); } }
+        continue;
+      }
+      if (SEGREDO_ARQ.test(e.nome)) { segArq.push(caminho); continue; } // .env etc.: nunca leva
+      const bom = NOMES_BONS.test(e.nome) || TEXTO.test(e.nome);
+      if (!bom || e.unc > op.maxArq || e.unc === 0) continue;
+      if (totLev + e.unc > op.maxTot && !NOMES_BONS.test(e.nome)) continue;
+      try {
+        let t = await (await dadosDe(blob, e)).text(); const r = tampar(t); t = r.t; tampados += r.n;
+        levados.push({ nome: 'arquivos/' + caminho.replace(/!\//g, '__dentro__/'), dados: t }); totLev += t.length;
+        if (/\.(ts|js|mjs|cjs|tsx|jsx)$/i.test(e.nome)) {
+          for (const m of t.matchAll(/\b(?:router|app|api|server)\.(get|post|put|patch|delete|all)\(\s*["'`]([^"'`]+)["'`]/g)) rotas.push(m[1].toUpperCase() + ' ' + m[2] + '   (' + caminho + ')');
+          for (const m of t.matchAll(/(?:process\.env|import\.meta\.env)\.([A-Z][A-Z0-9_]{2,})/g)) envs.set(m[1], (envs.get(m[1]) || 0) + 1);
+        }
+        for (const m of t.matchAll(/https?:\/\/([a-z0-9.-]+\.[a-z]{2,})(?::\d+)?/gi)) { const h = m[1].toLowerCase(); if (!/w3\.org|schema|example|localhost|jsdelivr|unpkg|cdnjs|googleapis\.com\/css|fonts\./.test(h)) hosts.set(h, (hosts.get(h) || 0) + 1); }
+        if (/(^|\/)package\.json$/i.test(e.nome)) { try { const j = JSON.parse(t); pacotes.push({ caminho, nome: j.name, versao: j.version, scripts: j.scripts || {}, deps: Object.keys(Object.assign({}, j.dependencies, j.devDependencies)) }); } catch (er) {} }
+      } catch (er) { erros.push(caminho + ': ' + er.message); }
+    }
+  }
+  status('Lendo o índice do zip…', 0.02);
+  await visitar(file, '', 0);
+  status('Montando o plano…', 0.95);
+  // ── plano ──
+  const porExt = {}, porPasta = {};
+  todos.forEach((f) => { const ext = (/\.([a-z0-9]{1,8})$/i.exec(f.caminho) || [, '(sem)'])[1].toLowerCase(); porExt[ext] = porExt[ext] || [0, 0]; porExt[ext][0]++; porExt[ext][1] += f.unc;
+    const pz = f.caminho.split('/').slice(0, 2).join('/'); porPasta[pz] = porPasta[pz] || [0, 0]; porPasta[pz][0]++; porPasta[pz][1] += f.unc; });
+  const totU = todos.reduce((a, f) => a + f.unc, 0);
+  const L = [];
+  L.push('# 🩻 Plano do ZIP — ' + file.name, '', 'Gerado pelo Raio-X de ZIP em ' + new Date().toLocaleString('pt-BR') + '.', '',
+    '## Números', '- Tamanho do zip: ' + fmtB(file.size), '- Arquivos (fora pastas pesadas): ' + todos.length + ' · ' + fmtB(totU) + ' descompactados', '- Pastas pesadas puladas (node_modules, .git, dist…): ' + pulPesadas + ' arquivos',
+    '- Arquivos de texto levados no ZIP pequeno: ' + levados.length + ' (' + fmtB(totLev) + ')', '- Senhas/chaves TAMPADAS nos arquivos levados: ' + tampados,
+    '- Arquivos de segredo NÃO levados (.env etc.): ' + (segArq.length ? segArq.join(', ') : 'nenhum'), '');
+  if (pacotes.length) { L.push('## Projetos encontrados (package.json)'); pacotes.forEach((p) => { L.push('### ' + (p.nome || '(sem nome)') + (p.versao ? ' v' + p.versao : '') + ' — `' + p.caminho + '`'); const sc = Object.entries(p.scripts); if (sc.length) L.push('Scripts: ' + sc.map(([k, v]) => '`' + k + '` = ' + v).join(' · ')); L.push('Dependências (' + p.deps.length + '): ' + p.deps.slice(0, 80).join(', ')); L.push(''); }); }
+  L.push('## Pastas principais'); Object.entries(porPasta).sort((a, b) => b[1][1] - a[1][1]).slice(0, 60).forEach(([k, v]) => L.push('- ' + k + ' — ' + v[0] + ' arq. · ' + fmtB(v[1]))); L.push('');
+  L.push('## Tipos de arquivo'); Object.entries(porExt).sort((a, b) => b[1][0] - a[1][0]).slice(0, 40).forEach(([k, v]) => L.push('- .' + k + ' — ' + v[0] + ' · ' + fmtB(v[1]))); L.push('');
+  L.push('## Os 25 maiores arquivos'); todos.slice().sort((a, b) => b.unc - a.unc).slice(0, 25).forEach((f) => L.push('- ' + fmtB(f.unc) + ' — ' + f.caminho)); L.push('');
+  if (rotas.length) { L.push('## Rotas do servidor (API) encontradas (' + rotas.length + ')'); [...new Set(rotas)].slice(0, 400).forEach((r) => L.push('- ' + r)); L.push(''); }
+  if (envs.size) { L.push('## Variáveis de ambiente usadas (só os NOMES)'); [...envs.entries()].sort((a, b) => b[1] - a[1]).forEach(([k, v]) => L.push('- ' + k + ' (' + v + 'x)')); L.push(''); }
+  if (hosts.size) { L.push('## Sites/APIs externos citados no código'); [...hosts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 80).forEach(([k, v]) => L.push('- ' + k + ' (' + v + 'x)')); L.push(''); }
+  if (erros.length) { L.push('## Avisos'); erros.slice(0, 50).forEach((e) => L.push('- ' + e)); L.push(''); }
+  L.push('## Lista completa de arquivos'); todos.slice(0, 6000).forEach((f) => L.push('- ' + f.caminho + ' (' + fmtB(f.unc) + ')')); if (todos.length > 6000) L.push('- … e mais ' + (todos.length - 6000));
+  const plano = L.join('\n');
+  resultado = { plano, levados, nome: file.name.replace(/\.zip$/i, '') };
+  $('nums').innerHTML = [[todos.length, 'arquivos'], [fmtB(totU), 'descompactado'], [levados.length, 'levados (texto)'], [fmtB(totLev), 'no ZIP pequeno'], [tampados, 'segredos tampados'], [pacotes.length, 'projetos']].map(([a, b]) => '<div><b>' + a + '</b><small>' + b + '</small></div>').join('');
+  $('plano').textContent = plano.slice(0, 60000) + (plano.length > 60000 ? '\n… (o plano completo vai no ZIP)' : '');
+  $('saida').hidden = false; status('✅ Pronto. Baixe o ZIP pequeno e mande para o Claude.', 1);
+}
+$('arq').onchange = () => { const f = $('arq').files[0]; $('ir').disabled = !f; if (f) $('msg').textContent = f.name + ' — ' + fmtB(f.size) + '. Toque em 🩻 Fazer o raio-X.'; };
+$('ir').onclick = async () => { const f = $('arq').files[0]; if (!f) return; $('ir').disabled = true; $('parar').disabled = false; $('saida').hidden = true;
+  try { await raioX(f); } catch (e) { $('msg').innerHTML = '<span class="w">⚠ ' + (e.message === 'parado' ? 'Parado.' : e.message) + '</span>'; }
+  $('ir').disabled = false; $('parar').disabled = true; };
+$('parar').onclick = () => { parar = true; };
+$('baixar').onclick = async () => { if (!resultado) return; $('okS').textContent = 'Montando o zip…';
+  try { const z = await zipar([{ nome: 'PLANO.md', dados: resultado.plano }].concat(resultado.levados)); const a = document.createElement('a'); a.href = URL.createObjectURL(z); a.download = resultado.nome + '-PLANO.zip'; document.body.appendChild(a); a.click(); a.remove(); $('okS').textContent = '✅ ' + resultado.nome + '-PLANO.zip (' + fmtB(z.size) + '). Mande esse para o Claude.'; }
+  catch (e) { $('okS').textContent = '⚠ ' + e.message; } };
+$('copiar').onclick = async () => { try { await navigator.clipboard.writeText(resultado.plano); $('okS').textContent = '✓ Plano copiado.'; } catch (e) { $('okS').textContent = 'Não consegui copiar; use Baixar.'; } };
+if (!('DecompressionStream' in window)) $('msg').innerHTML = '<span class="w">Este navegador é antigo: abra no Chrome atualizado.</span>';
+window.__rx = { indice, dadosDe, zipar, tampar };
+}
+</script>
+</body>
+</html>

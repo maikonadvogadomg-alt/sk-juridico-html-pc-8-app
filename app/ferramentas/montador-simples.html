@@ -1,0 +1,384 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Montador Simples (v25/11-B)</title>
+<style>
+/* Montador Simples — importa qualquer coisa, aplica uma PEÇA e baixa no formato certo.
+   Peças: índices → Bacen · tabela → colunas · limpar texto · JSON → tabela. Modelos salvos (sem regex). */
+:root{color-scheme:light dark;--bg:light-dark(#dff1f7,#06222e);--ink:light-dark(#06222e,#dff1f7);--card:light-dark(#fff,#0c3242);--line:light-dark(#9cc6d4,#2c5868);--soft:light-dark(#3c6474,#9fc3d0);--acc:#ff2e7e;--ok:light-dark(#0a7a55,#5fe0b0);--warn:light-dark(#a3470b,#ffb37a)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+html,body{overscroll-behavior:none}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,sans-serif;overflow-x:clip}
+.band{max-width:1200px;margin:0 auto;padding:16px max(4vw,16px)}
+h1{font-size:clamp(28px,5vw,40px);line-height:1.05;margin:0 0 4px;letter-spacing:-.02em}
+.sub{color:var(--soft);margin:0 0 14px}
+.grid{display:grid;gap:14px;grid-template-columns:minmax(0,1fr)}
+@media(min-width:900px){.grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px}
+h2{font-size:18px;margin:0 0 8px}
+label{display:block;font-weight:600;font-size:14px;margin:10px 0 4px}
+textarea,select,input{font:15px/1.4 system-ui,sans-serif;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%}
+textarea{min-height:200px;font-family:ui-monospace,Menlo,monospace;font-size:13px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px}
+.row>*{flex:1 1 140px}
+button{font:600 14px system-ui;min-height:42px;padding:0 12px;border-radius:8px;border:1px solid var(--ink);background:transparent;color:var(--ink);cursor:pointer;flex:0 0 auto}
+button.main{background:var(--acc);border-color:var(--acc);color:#fff}
+.pecas{display:flex;gap:6px;flex-wrap:wrap}
+.pecas button.on{background:var(--ink);color:var(--bg)}
+.msg{font-size:14px;margin-top:8px}.w{color:var(--warn)}.o{color:var(--ok)}
+.scroll{overflow:auto;max-height:300px;border:1px solid var(--line);border-radius:8px;margin-top:8px}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:4px 8px;border-bottom:1px solid var(--line);white-space:nowrap;text-align:left}
+th{position:sticky;top:0;background:var(--card)}
+th select{min-width:110px;padding:4px;font-size:13px}
+.modelos{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.modelos span{display:inline-flex;gap:4px;align-items:center;border:1px solid var(--line);border-radius:20px;padding:2px 4px 2px 10px;font-size:13px}
+.modelos span button{min-height:28px;padding:0 8px;font-size:12px}
+small{color:var(--soft)}
+</style>
+</head>
+<body>
+<div class="band">
+  <h1>Montador simples</h1>
+  <p class="sub">Jogue qualquer coisa (PDF, Excel, CSV, JSON, texto colado), escolha a peça, confira a prévia e baixe no formato certo. Sem fórmulas estranhas: você só escolhe.</p>
+
+  <div class="grid">
+    <div class="panel">
+      <h2>1. Entrada</h2>
+      <input type="file" id="arq" accept=".txt,.csv,.tsv,.json,.xlsx,.xls,.pdf,.md,.html">
+      <label for="ent">Ou cole aqui</label>
+      <textarea id="ent" spellcheck="false" placeholder="Cole a tabela, o texto do PDF, o JSON do backup…"></textarea>
+      <div class="row"><button id="consertar">🔤 Consertar letras quebradas (Ã§ → ç)</button><button id="limparEnt">Limpar</button></div>
+      <div class="msg" id="msgEnt"></div>
+
+      <h2 style="margin-top:14px">2. Peça</h2>
+      <div class="pecas" id="pecas"></div>
+      <div id="opcoes"></div>
+      <div class="row"><button class="main" id="aplicar">▶ Aplicar</button></div>
+      <div class="msg" id="msg"></div>
+
+      <h2 style="margin-top:14px">Meus modelos</h2>
+      <div class="row"><input id="nomeModelo" placeholder="Nome do modelo (ex.: Tabela TJMG → Bacen)"><button id="salvarModelo">💾 Guardar modelo</button></div>
+      <div class="modelos" id="modelos"></div>
+      <small>O modelo guarda a peça e as escolhas. Da próxima vez: toque nele, cole o arquivo novo e pronto.</small>
+    </div>
+
+    <div class="panel">
+      <h2>3. Prévia</h2>
+      <div class="scroll" id="previa"><p style="padding:10px" class="w">Aplique uma peça para ver a prévia.</p></div>
+      <h2 style="margin-top:14px">4. Saída</h2>
+      <label for="fmt">Formato</label>
+      <select id="fmt"></select>
+      <textarea id="sai" readonly spellcheck="false"></textarea>
+      <div class="row">
+        <button class="main" id="copiar">Copiar</button>
+        <button id="baixar">Baixar</button>
+        <label style="margin:0;flex:1 1 200px;font-weight:400"><input type="checkbox" id="bom" style="width:auto"> Marca para o Excel do Windows (acentos)</label>
+      </div>
+      <small id="okSai"></small>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+{
+const $ = (i) => document.getElementById(i);
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const lerPref = (k, d) => { try { const v = localStorage.getItem('montador:' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } };
+const gravarPref = (k, v) => { try { localStorage.setItem('montador:' + k, JSON.stringify(v)); } catch (e) {} };
+
+// ───────── utilidades comuns ─────────
+const MESES = { jan: 1, fev: 2, feb: 2, mar: 3, abr: 4, apr: 4, mai: 5, may: 5, jun: 6, jul: 7, ago: 8, aug: 8, set: 9, sep: 9, out: 10, oct: 10, nov: 11, dez: 12, dec: 12 };
+const mesNome = (t) => MESES[String(t).toLowerCase().normalize('NFD').replace(/[^a-z]/g, '').slice(0, 3)];
+const num = (x) => { let s = String(x).replace(/[%\sR$]/g, ''); if (!/^-?[\d.,]+$/.test(s) || !/\d/.test(s)) return null;
+  const v = s.lastIndexOf(','), p = s.lastIndexOf('.');
+  if (v > -1 && p > -1) s = v > p ? s.replace(/\./g, '').replace(',', '.') : s.replace(/,/g, ''); else if (v > -1) s = s.replace(',', '.');
+  const n = parseFloat(s); return isNaN(n) ? null : n; };
+const anoU = (a) => { a = +a; return a < 100 ? (a > 50 ? 1900 + a : 2000 + a) : a; };
+const br = (n, c) => n.toLocaleString('pt-BR', { minimumFractionDigits: c, maximumFractionDigits: c });
+function consertarLetras(t) {
+  if (!/Ã|Â|â€/.test(t)) return t;
+  try { const r = decodeURIComponent(escape(t)); if (!/Ã/.test(r)) return r; } catch (e) {}
+  const mapa = { 'Ã§': 'ç', 'Ã£': 'ã', 'Ã¡': 'á', 'Ã©': 'é', 'Ãª': 'ê', 'Ã­': 'í', 'Ã³': 'ó', 'Ãµ': 'õ', 'Ãº': 'ú', 'Ã¢': 'â', 'Ã´': 'ô', 'Ã ': 'à', 'Ã‡': 'Ç', 'Ãƒ': 'Ã', 'Ã‰': 'É', 'Ã“': 'Ó', 'Ãš': 'Ú', 'Â°': '°', 'Âº': 'º', 'Âª': 'ª', 'â€œ': '“', 'â€': '”', 'â€“': '–', 'â€”': '—', 'â€™': '’', 'Â ': ' ' };
+  return Object.keys(mapa).reduce((s, k) => s.split(k).join(mapa[k]), t);
+}
+function separador(linhas) {
+  const c = { '\t': 0, ';': 0, '|': 0, ',': 0 }; linhas.slice(0, 30).forEach((l) => Object.keys(c).forEach((k) => { c[k] += l.split(k).length - 1; }));
+  const melhor = Object.keys(c).sort((a, b) => c[b] - c[a])[0];
+  return c[melhor] >= Math.min(linhas.length, 30) ? melhor : 'espacos';
+}
+function colunas(texto, sep) {
+  const linhas = String(texto).split(/\r?\n/).filter((l) => l.trim());
+  const s = sep === 'auto' ? separador(linhas) : sep;
+  return { sep: s, linhas: linhas.map((l) => s === 'espacos' ? l.trim().split(/\s{2,}|\t/) : l.split(s).map((x) => x.trim().replace(/^"|"$/g, ''))) };
+}
+function csv(rows, cab) {
+  const cel = (v) => { const t = v == null ? '' : String(v); return /[;"\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; };
+  return [cab.map(cel).join(';')].concat(rows.map((r) => cab.map((c) => cel(r[c])).join(';'))).join('\n');
+}
+const md = (rows, cab) => '| ' + cab.join(' | ') + ' |\n|' + cab.map(() => '---').join('|') + '|\n' + rows.map((r) => '| ' + cab.map((c) => String(r[c] == null ? '' : r[c]).replace(/\|/g, '\\|')).join(' | ') + ' |').join('\n');
+function tabelaHtml(rows, cab, max) {
+  return '<table><thead><tr>' + cab.map((c) => '<th>' + esc(c) + '</th>').join('') + '</tr></thead><tbody>' + rows.slice(0, max || 300).map((r) => '<tr>' + cab.map((c) => '<td>' + esc(r[c]) + '</td>').join('') + '</tr>').join('') + '</tbody></table>' + (rows.length > (max || 300) ? '<p style="padding:6px"><small>… e mais ' + (rows.length - (max || 300)) + ' linhas.</small></p>' : '');
+}
+
+// Tabela TJMG copiada por COLUNA (ex.: extrator do Cálculo Jurídico): "ANO 1964 1965 …" e depois "DEZ v1964 v1965 …", "NOV …"
+function lerColunasPorMes(texto){
+  var MES3 = {JAN:1,FEV:2,MAR:3,ABR:4,MAI:5,JUN:6,JUL:7,AGO:8,SET:9,OUT:10,NOV:11,DEZ:12};
+  var tks = String(texto).replace(/ /g," ").split(/\s+/).filter(Boolean);
+  var ref = String(texto).match(/V[áa]lida\s+para:?\s*([A-Za-zçÇ]+)\s+(?:DE\s+)?(\d{4})/i), refY = null, refM = null;
+  if(ref){ var mm = MES3[ref[1].toUpperCase().normalize("NFD").replace(/[^A-Z]/g,"").slice(0,3)]; if(mm){ refY = +ref[2]; refM = mm; } }
+  var ehNum = function(t){ return /^\d+,\d{4,}$/.test(t); };
+  var out = {}, n = 0, anos = null, i = 0;
+  while(i < tks.length){
+    var t = tks[i].toUpperCase();
+    if(t === "ANO"){ anos = []; i++; while(i < tks.length && /^(19|20)\d\d$/.test(tks[i])){ anos.push(+tks[i]); i++; } continue; }
+    var m = MES3[t];
+    if(anos && anos.length && m && tks[i].length === 3){
+      var j = i + 1, pulos = 0, vals = [];
+      while(j < tks.length && !ehNum(tks[j]) && pulos < 3 && !MES3[tks[j].toUpperCase()] && tks[j].toUpperCase() !== "ANO"){ j++; pulos++; }
+      while(j < tks.length && ehNum(tks[j])){ vals.push(tks[j]); j++; }
+      if(vals.length){
+        var ys = anos.slice();
+        if(vals.length === ys.length - 1){
+          var ultimoMes = refM ? (refM === 1 ? 12 : refM - 1) : null, ultimoAno = refM ? (refM === 1 ? refY - 1 : refY) : null;
+          if(ultimoAno && ys[ys.length-1] === ultimoAno && m > ultimoMes) ys.pop(); else ys.shift();
+        }
+        if(vals.length === ys.length){ for(var k=0;k<ys.length;k++){ out[ys[k]+"-"+String(m).padStart(2,"0")] = parseFloat(vals[k].replace(",", ".")); n++; } }
+      }
+      i = j; continue;
+    }
+    i++;
+  }
+  return {mapa: out, total: n};
+}
+
+// ───────── PEÇAS ─────────
+const PECAS = {
+  modelo: {
+    nome: '🎯 Igualar a um MODELO',
+    opcoes: () => '<label>Cole aqui um arquivo MODELO — do jeito que você quer que fique (ex.: o CSV baixado do site do Bacen)</label><textarea id="o_mod" spellcheck="false" style="min-height:110px" placeholder="Data;25464 - Taxa média mensal ... - % a.m.\n09/2017;7,08\n10/2017;7,27\nFonte;BCB-DSTAT"></textarea>' +
+      '<input type="file" id="o_modArq" accept=".csv,.txt,.tsv,.json" style="margin-top:6px">' +
+      '<div id="o_aprendi" class="msg"></div>' +
+      '<label>Os números da ENTRADA são…</label><select id="o_tipo"><option value="auto">Descobrir sozinho (fator/índice viram % do mês)</option><option value="var">% do mês (deixar como estão)</option><option value="fator">Fator acumulado do TJMG → % do mês</option><option value="indice">Número-índice → % do mês</option><option value="manter">Não mexer nos números</option></select>' +
+      '<label>Cabeçalho (o que vai em cima)</label><input id="o_cab" placeholder="aprendido do modelo — pode mudar">' +
+      '<label>Rodapé (o que vai embaixo)</label><input id="o_rod" placeholder="aprendido do modelo — pode mudar">',
+    ler: () => ({ mod: $('o_mod').value, tipo: $('o_tipo').value, cab: $('o_cab').value, rod: $('o_rod').value }),
+    por: (o) => { $('o_mod').value = o.mod || ''; $('o_tipo').value = o.tipo || 'auto'; $('o_cab').value = o.cab || ''; $('o_rod').value = o.rod || ''; },
+    formatos: [['igual', 'Igual ao modelo']],
+    aprender(mod) {
+      const linhas = String(mod).replace(/^\uFEFF/, '').split(/\r?\n/); const ne = linhas.filter((l) => l.trim());
+      const sep = ['\t', ';', ',', '|'].map((k) => [k, ne.slice(0, 30).reduce((a, l) => a + (l.split(k).length - 1), 0)]).sort((a, b) => b[1] - a[1])[0][0];
+      const tira = (x) => x.trim().replace(/^"(.*)"$/, '$1');
+      const DATAS = [['DD/MM/AAAA', /^\d{2}\/\d{2}\/\d{4}$/], ['MM/AAAA', /^\d{2}\/\d{4}$/], ['M/AAAA', /^\d{1}\/\d{4}$/], ['AAAA-MM-DD', /^\d{4}-\d{2}-\d{2}$/], ['AAAA-MM', /^\d{4}-\d{2}$/], ['mmm/AAAA', /^[A-Za-zç]{3}\/\d{4}$/], ['AAAAMM', /^\d{6}$/]];
+      const tipoData = (t) => { for (const [n, re] of DATAS) if (re.test(t)) return n; return null; };
+      let ini = -1, fim = -1, fdata = null, dec = ',', casas = 2, aspas = false, pct = false, maiusc = false, ncol = 2;
+      linhas.forEach((l, i) => { const c = l.split(sep); if (c.length < 2) return; const d = tipoData(tira(c[0])), v = tira(c[1]).replace('%', '');
+        if (d && /^-?[\d.,]+$/.test(v)) { if (ini < 0) { ini = i; fdata = d; aspas = /^"/.test(c[0].trim()); maiusc = /^[A-Z]/.test(tira(c[0])); ncol = c.length; } fim = i;
+          if (/,\d+$/.test(v)) { dec = ','; casas = Math.max(casas === 2 && i === ini ? 0 : casas, v.split(',')[1].length); } else if (/\.\d+$/.test(v)) { dec = '.'; casas = Math.max(casas === 2 && i === ini ? 0 : casas, v.split('.')[1].length); }
+          if (/%/.test(c[1])) pct = true; } });
+      if (ini < 0) throw new Error('Não achei linhas de "data + número" no modelo.');
+      return { sep, fdata, dec, casas, aspas, pct, maiusc, ncol, cab: linhas.slice(0, ini).filter((l) => l.trim()).join('\n'), rod: linhas.slice(fim + 1).filter((l) => l.trim()).join('\n') };
+    },
+    aplicar(texto, o) {
+      if (!o.mod.trim()) throw new Error('Cole o arquivo MODELO (como você quer que fique) no campo da peça.');
+      const f = this.aprender(o.mod);
+      if (!o.cab && f.cab) $('o_cab').value = o.cab = f.cab; if (!o.rod && f.rod) $('o_rod').value = o.rod = f.rod;
+      const sepNome = { '\t': 'tab', ';': 'ponto e vírgula (;)', ',': 'vírgula (,)', '|': 'barra (|)' }[f.sep];
+      $('o_aprendi').innerHTML = '<span class="o">🎓 Aprendi do modelo: separador <b>' + sepNome + '</b> · data <b>' + f.fdata + '</b> · decimal <b>' + (f.dec === ',' ? 'vírgula' : 'ponto') + '</b> com <b>' + f.casas + '</b> casas' + (f.pct ? ' · com %' : '') + (f.aspas ? ' · com aspas' : '') + (f.cab ? ' · cabeçalho de ' + f.cab.split('\n').length + ' linha(s)' : '') + (f.rod ? ' · rodapé' : '') + '.</span>';
+      const tipoIn = o.tipo === 'manter' ? 'var' : o.tipo;
+      const r = PECAS.indices.aplicar(texto, { tipo: tipoIn, casas: '6', soSerie: true });
+      const lista = o.tipo === 'manter' ? r.bruto : r.serie;
+      const MS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+      const fd = (k) => { const y = k.slice(0, 4), m = k.slice(5, 7); let t;
+        switch (f.fdata) { case 'DD/MM/AAAA': t = '01/' + m + '/' + y; break; case 'MM/AAAA': t = m + '/' + y; break; case 'M/AAAA': t = (+m) + '/' + y; break; case 'AAAA-MM-DD': t = y + '-' + m + '-01'; break; case 'AAAA-MM': t = y + '-' + m; break; case 'AAAAMM': t = y + m; break; default: t = MS[+m - 1] + '/' + y; if (f.maiusc) t = t[0].toUpperCase() + t.slice(1); }
+        return f.aspas ? '"' + t + '"' : t; };
+      const fv = (v) => { let t = v.toFixed(f.casas); if (f.dec === ',') t = t.replace('.', ','); if (f.pct) t += '%'; return f.aspas ? '"' + t + '"' : t; };
+      const corpo = lista.map((x) => fd(x.k) + f.sep + fv(x.v) + (f.ncol > 2 ? f.sep.repeat(f.ncol - 2) : ''));
+      const final = [o.cab].concat(corpo).concat([o.rod]).filter((x) => x !== '' && x != null).join('\n');
+      const rows = lista.map((x) => ({ data: fd(x.k).replace(/"/g, ''), valor: fv(x.v).replace(/"/g, '') }));
+      return { cab: ['data', 'valor'], rows, info: lista.length + ' linhas no formato do modelo' + (o.tipo !== 'manter' && r.tipo !== 'var' ? ' (convertido de ' + { fator: 'fator acumulado', indice: 'número-índice' }[r.tipo] + ' para % do mês)' : '') + '.', saida: { igual: () => final } };
+    }
+  },
+  indices: {
+    nome: '📈 Índices → formato Bacen',
+    opcoes: () => '<label>O que são os números?</label><select id="o_tipo"><option value="auto">Descobrir sozinho</option><option value="var">Variação % do mês</option><option value="fator">Fator acumulado (TJMG — cai com o tempo)</option><option value="indice">Número-índice (sobe com o tempo)</option></select><label>Casas decimais</label><select id="o_casas"><option>2</option><option selected>4</option><option>6</option></select>',
+    ler: () => ({ tipo: $('o_tipo').value, casas: $('o_casas').value }),
+    por: (o) => { $('o_tipo').value = o.tipo || 'auto'; $('o_casas').value = o.casas || '4'; },
+    formatos: [['csv', 'CSV do Bacen (data;valor)'], ['json', 'JSON da API do Bacen'], ['tsv', 'Para colar no Excel']],
+    aplicar(texto, o) {
+      const mat = {}, lin = {}; let nMat = 0, nLin = 0, primeira = true;
+      try { const j = JSON.parse(texto); if (Array.isArray(j)) texto = j.map((x) => (x.data || x.date || x.mes) + ';' + (x.valor != null ? x.valor : x.value)).join('\n'); } catch (e) {}
+      for (const bruta of String(texto).split(/\r?\n/)) {
+        const l = bruta.trim(); if (!l) continue; const tk = l.split(/\t|;|\||\s+/).filter(Boolean);
+        if (/^(19|20)\d\d$/.test(tk[0]) && tk.length >= 2) {
+          const resto = tk.slice(1); if (resto[resto.length - 1] === tk[0]) resto.pop();
+          const vs = resto.map(num);
+          if (vs.length && vs.every((v, i) => v !== null && /[.,]/.test(resto[i]))) { const d = vs.length < 12 && primeira ? 12 - vs.length : 0; vs.slice(0, 12).forEach((v, m) => { mat[tk[0] + '-' + String(m + 1 + d).padStart(2, '0')] = v; nMat++; }); primeira = false; continue; }
+        }
+        let r, y = null, m = null;
+        if ((r = l.match(/\b((?:19|20)\d\d)\b[\s;,\t]+([A-Za-zçÇ]{3,})/)) && mesNome(r[2])) { y = +r[1]; m = mesNome(r[2]); }
+        else if ((r = l.match(/\b(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})\b/))) { m = +r[2]; y = anoU(r[3]); }
+        else if ((r = l.match(/\b((?:19|20)\d\d)[\/.-](\d{1,2})\b/))) { y = +r[1]; m = +r[2]; }
+        else if ((r = l.match(/\b(\d{1,2})[\/.-]((?:19|20)\d\d)\b/))) { m = +r[1]; y = +r[2]; }
+        else if ((r = l.match(/([A-Za-zçÇ]{3,})\.?[\s\/.-]*(?:de\s+)?(\d{4}|\d{2})\b/)) && mesNome(r[1])) { m = mesNome(r[1]); y = anoU(r[2]); }
+        if (!r || !m || m > 12) continue;
+        const vs = l.replace(r[0], ' ').split(/[\s;|\t]+/).map(num).filter((v) => v !== null);
+        if (vs.length) { lin[y + '-' + String(m).padStart(2, '0')] = vs[vs.length - 1]; nLin++; }
+      }
+      let mapa = nMat >= 12 ? mat : (nLin >= nMat ? lin : mat);
+      if (Object.keys(mapa).length < 12) { // PDF colado com um número por linha
+        const tks = String(texto).split(/\s+/).filter(Boolean), out = {}; let ano = null, mes = 0;
+        for (const t of tks) { if (/^(19|20)\d\d$/.test(t)) { if (t !== ano) { ano = t; mes = 0; } continue; } if (ano && /^\d+,\d{4,}$/.test(t) && mes < 12) { mes++; out[ano + '-' + String(mes).padStart(2, '0')] = num(t); } }
+        if (Object.keys(out).length > Object.keys(mapa).length) mapa = out;
+      }
+      const col = lerColunasPorMes(texto); if (col.total > Object.keys(mapa).length) mapa = col.mapa;
+      const ks = Object.keys(mapa).sort(); if (!ks.length) throw new Error('Não achei nenhum mês com valor.');
+      const vals = ks.map((k) => mapa[k]); let tipo = o.tipo;
+      if (tipo === 'auto') { let sobe = 0, desce = 0; for (let i = 1; i < vals.length; i++) { if (vals[i] > vals[i - 1]) sobe++; else if (vals[i] < vals[i - 1]) desce++; } const t = vals.length - 1;
+        tipo = vals.some((x) => x <= 0) ? 'var' : (vals.length >= 24 && desce >= t * 0.75) || (vals.length >= 3 && vals.every((x) => x > 0.9) && desce >= t * 0.9) ? 'fator' : (vals.length >= 3 && sobe >= t * 0.9 && vals.some((x) => x > 25)) ? 'indice' : vals.every((x) => Math.abs(x) < 25) ? 'var' : 'indice'; }
+      const ref = String(texto).match(/V[áa]lida\s+para:?\s*([A-Za-zçÇ]+)\s+(?:DE\s+)?(\d{4})/i);
+      if (tipo === 'fator' && ref && mesNome(ref[1])) { const k = ref[2] + '-' + String(mesNome(ref[1])).padStart(2, '0'); if (mapa[k] == null) { mapa[k] = 1; ks.push(k); ks.sort(); } }
+      const rows = [];
+      if (tipo === 'var') ks.forEach((k) => rows.push({ k, v: mapa[k] }));
+      else for (let i = 1; i < ks.length; i++) { const a = mapa[ks[i - 1]], b = mapa[ks[i]]; rows.push(tipo === 'indice' ? { k: ks[i], v: (b / a - 1) * 100 } : { k: ks[i - 1], v: (a / b - 1) * 100 }); }
+      const c = +o.casas, d = (k) => '01/' + k.slice(5) + '/' + k.slice(0, 4);
+      if (o.soSerie) return { serie: rows, bruto: ks.map((k) => ({ k, v: mapa[k] })), tipo };
+      const tab = rows.map((r) => ({ data: d(r.k), valor: br(r.v, c) }));
+      return { cab: ['data', 'valor'], rows: tab, info: rows.length + ' meses (' + d(rows[0].k) + ' a ' + d(rows[rows.length - 1].k) + '), lido como ' + { var: 'variação % do mês', fator: 'fator acumulado', indice: 'número-índice' }[tipo] + '.',
+        saida: { csv: () => 'data;valor\n' + tab.map((r) => r.data + ';' + r.valor).join('\n'), json: () => JSON.stringify(rows.map((r) => ({ data: d(r.k), valor: r.v.toFixed(c) }))), tsv: () => 'data\tvalor\n' + tab.map((r) => r.data + '\t' + r.valor).join('\n') } };
+    }
+  },
+  tabela: {
+    nome: '📋 Tabela → colunas',
+    opcoes: () => '<label>Separador</label><select id="o_sep"><option value="auto">Descobrir sozinho</option><option value="\t">Tab (Excel)</option><option value=";">;</option><option value=",">,</option><option value="|">|</option><option value="espacos">Espaços (PDF)</option></select><label><input type="checkbox" id="o_cab" checked style="width:auto"> A 1ª linha é o cabeçalho</label><small>Na prévia, escolha o nome de cada coluna ou "ignorar".</small>',
+    ler: () => ({ sep: $('o_sep').value, cab: $('o_cab').checked, nomes: [...document.querySelectorAll('[data-col]')].map((s) => s.value) }),
+    por: (o) => { $('o_sep').value = o.sep || 'auto'; $('o_cab').checked = o.cab !== false; PECAS.tabela._nomes = o.nomes || null; },
+    formatos: [['csv', 'CSV (;)'], ['json', 'JSON'], ['md', 'Tabela Markdown'], ['tsv', 'Para colar no Excel']],
+    aplicar(texto, o) {
+      const { linhas } = colunas(texto, o.sep); if (!linhas.length) throw new Error('Não há linhas.');
+      const n = Math.max(...linhas.map((l) => l.length));
+      const orig = o.cab ? linhas[0].map((c, i) => c || 'coluna ' + (i + 1)) : Array.from({ length: n }, (_, i) => 'coluna ' + (i + 1));
+      while (orig.length < n) orig.push('coluna ' + (orig.length + 1));
+      const nomes = (o.nomes && o.nomes.length === n ? o.nomes : null) || (PECAS.tabela._nomes && PECAS.tabela._nomes.length === n ? PECAS.tabela._nomes : null) || orig.slice();
+      const dados = (o.cab ? linhas.slice(1) : linhas);
+      const usar = nomes.map((nm, i) => [nm, i]).filter((x) => x[0] !== '(ignorar)');
+      const cab = usar.map((x) => x[0]);
+      const rows = dados.map((l) => Object.fromEntries(usar.map(([nm, i]) => [nm, l[i] == null ? '' : l[i]])));
+      return { cab, rows, info: dados.length + ' linhas, ' + cab.length + ' colunas.', escolhaColunas: { orig, nomes },
+        saida: { csv: () => csv(rows, cab), json: () => JSON.stringify(rows, null, 1), md: () => md(rows, cab), tsv: () => cab.join('\t') + '\n' + rows.map((r) => cab.map((c) => r[c]).join('\t')).join('\n') } };
+    }
+  },
+  limpar: {
+    nome: '🧹 Limpar texto (PDF, site)',
+    opcoes: () => '<label><input type="checkbox" id="o_juntar" checked style="width:auto"> Juntar linhas quebradas do PDF</label><label><input type="checkbox" id="o_hifen" checked style="width:auto"> Tirar hífen de fim de linha (pala-\\nvra)</label><label><input type="checkbox" id="o_rep" checked style="width:auto"> Tirar cabeçalho/rodapé que se repete em toda página</label><label><input type="checkbox" id="o_esp" checked style="width:auto"> Tirar espaços sobrando</label>',
+    ler: () => ({ juntar: $('o_juntar').checked, hifen: $('o_hifen').checked, rep: $('o_rep').checked, esp: $('o_esp').checked }),
+    por: (o) => { ['juntar', 'hifen', 'rep', 'esp'].forEach((k) => { $('o_' + k).checked = o[k] !== false; }); },
+    formatos: [['txt', 'Texto'], ['md', 'Markdown']],
+    aplicar(texto, o) {
+      let t = consertarLetras(String(texto)).replace(/\r/g, '').replace(/ /g, ' ');
+      let ls = t.split('\n'); let tirou = 0;
+      if (o.rep) { const c = {}; ls.forEach((l) => { const k = l.trim(); if (k && k.length < 120) c[k] = (c[k] || 0) + 1; }); ls = ls.filter((l) => { const k = l.trim(); const r = k && c[k] >= 3 && !/^\d+([.,]\d+)?$/.test(k); if (r) tirou++; return !r; }); }
+      t = ls.join('\n');
+      if (o.hifen) t = t.replace(/(\p{L})-\n(\p{Ll})/gu, '$1$2');
+      if (o.juntar) t = t.replace(/([^\n.:;!?])\n(?=\p{Ll})/gu, '$1 ');
+      if (o.esp) t = t.replace(/[ \t]+/g, ' ').replace(/ *\n */g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+      return { texto: t, info: t.length + ' letras' + (tirou ? ', tirei ' + tirou + ' linhas repetidas (cabeçalho/rodapé)' : '') + '.', saida: { txt: () => t, md: () => t } };
+    }
+  },
+  json: {
+    nome: '🗂 JSON / backup → tabela',
+    opcoes: () => '<label>Lista de dentro do JSON</label><select id="o_lista"><option value="">(descobrir sozinho)</option></select><small>Ex.: em um backup do Meu Chat, escolha "conversas".</small>',
+    ler: () => ({ lista: $('o_lista').value }),
+    por: (o) => { PECAS.json._lista = o.lista || ''; },
+    formatos: [['csv', 'CSV (;)'], ['md', 'Tabela Markdown'], ['json', 'JSON (só a lista)']],
+    aplicar(texto, o) {
+      let d; try { d = JSON.parse(texto); } catch (e) { throw new Error('Isso não é um JSON válido.'); }
+      const listas = []; const achar = (x, cam, nv) => { if (nv > 4 || !x || typeof x !== 'object') return; if (Array.isArray(x)) { if (x.length && typeof x[0] === 'object') listas.push([cam || '(raiz)', x]); x.slice(0, 1).forEach((y) => achar(y, cam + '[0]', nv + 1)); } else Object.keys(x).forEach((k) => achar(x[k], cam ? cam + '.' + k : k, nv + 1)); };
+      achar(d, '', 0); if (!listas.length) throw new Error('Não achei nenhuma lista de registros no JSON.');
+      const sel = $('o_lista'); const atual = o.lista || PECAS.json._lista || ''; PECAS.json._lista = '';
+      sel.innerHTML = listas.map(([c, a]) => '<option value="' + esc(c) + '">' + esc(c) + ' (' + a.length + ')</option>').join('');
+      const esc1 = listas.find((x) => x[0] === atual) || listas.sort((a, b) => b[1].length - a[1].length)[0]; sel.value = esc1[0];
+      const plano = (obj, pre, out) => { Object.keys(obj || {}).forEach((k) => { const v = obj[k]; if (v && typeof v === 'object' && !Array.isArray(v)) plano(v, pre + k + '.', out); else out[pre + k] = Array.isArray(v) ? (v.length && typeof v[0] === 'object' ? '[' + v.length + ' itens]' : v.join(', ')) : v; }); return out; };
+      const rows = esc1[1].map((x) => plano(x, '', {}));
+      const cab = [...new Set(rows.slice(0, 300).flatMap((r) => Object.keys(r)))].filter((c) => !/chave|apikey|api_key|senha|password|token|secret/i.test(c));
+      return { cab, rows, info: rows.length + ' registros de "' + esc1[0] + '". Campos de senha/chave foram tirados.', saida: { csv: () => csv(rows, cab), md: () => md(rows, cab), json: () => JSON.stringify(esc1[1], null, 1) } };
+    }
+  }
+};
+
+// ───────── tela ─────────
+let pecaAtual = lerPref('peca', 'modelo'), res = null;
+function mostrarPecas() {
+  $('pecas').innerHTML = Object.keys(PECAS).map((k) => '<button data-p="' + k + '" class="' + (k === pecaAtual ? 'on' : '') + '">' + PECAS[k].nome + '</button>').join('');
+  $('opcoes').innerHTML = PECAS[pecaAtual].opcoes();
+  $('fmt').innerHTML = PECAS[pecaAtual].formatos.map(([v, n]) => '<option value="' + v + '">' + n + '</option>').join('');
+}
+$('pecas').onclick = (e) => { const b = e.target.closest('[data-p]'); if (!b) return; pecaAtual = b.dataset.p; PECAS.tabela._nomes = null; gravarPref('peca', pecaAtual); res = null; mostrarPecas(); $('previa').innerHTML = '<p style="padding:10px" class="w">Toque em ▶ Aplicar.</p>'; $('sai').value = ''; };
+function aplicar() {
+  const t = $('ent').value; if (!t.trim()) { $('msg').innerHTML = '<span class="w">Cole algo ou escolha um arquivo primeiro.</span>'; return; }
+  try {
+    res = PECAS[pecaAtual].aplicar(t, PECAS[pecaAtual].ler());
+    $('msg').innerHTML = '<span class="o">✓ ' + esc(res.info) + '</span>';
+    if (res.texto != null) $('previa').innerHTML = '<pre style="padding:10px;white-space:pre-wrap;overflow-wrap:anywhere;margin:0">' + esc(res.texto.slice(0, 20000)) + '</pre>';
+    else {
+      $('previa').innerHTML = tabelaHtml(res.rows, res.cab);
+      if (res.escolhaColunas) { // escolher o nome de cada coluna, sem fórmulas
+        const { orig, nomes } = res.escolhaColunas; const sug = ['data', 'valor', 'nome', 'cpf', 'competencia', 'salario', 'descricao', 'numero', '(ignorar)'];
+        const th = '<tr>' + orig.map((o, i) => '<th><select data-col="' + i + '">' + [...new Set([nomes[i], o].concat(sug))].map((s) => '<option' + (s === nomes[i] ? ' selected' : '') + '>' + esc(s) + '</option>').join('') + '</select></th>').join('') + '</tr>';
+        $('previa').querySelector('thead').innerHTML = th;
+        $('previa').querySelectorAll('[data-col]').forEach((s) => { s.onchange = aplicar; });
+      }
+    }
+    saida();
+  } catch (e) { res = null; $('msg').innerHTML = '<span class="w">' + esc(e.message) + '</span>'; $('sai').value = ''; }
+}
+function saida() { if (!res) return; const f = res.saida[$('fmt').value] || Object.values(res.saida)[0]; $('sai').value = f(); }
+$('aplicar').onclick = aplicar; $('fmt').onchange = saida;
+document.addEventListener('change', async (e) => { if (e.target && e.target.id === 'o_modArq') { const f = e.target.files[0]; if (!f) return; const buf = new Uint8Array(await f.arrayBuffer()); let t = new TextDecoder('utf-8').decode(buf); if (t.includes('\uFFFD')) t = new TextDecoder('windows-1252').decode(buf); $('o_mod').value = t; $('o_cab').value = ''; $('o_rod').value = ''; if ($('ent').value.trim()) aplicar(); } });
+document.addEventListener('input', (e) => { if (e.target && e.target.id === 'o_mod') { $('o_cab').value = ''; $('o_rod').value = ''; } });
+$('consertar').onclick = () => { const a = $('ent').value, b = consertarLetras(a); $('ent').value = b; $('msgEnt').innerHTML = a === b ? '<span class="o">Não achei letras quebradas.</span>' : '<span class="o">✓ Letras consertadas.</span>'; };
+$('limparEnt').onclick = () => { $('ent').value = ''; $('msgEnt').textContent = ''; };
+$('arq').onchange = async (e) => {
+  const f = e.target.files[0]; if (!f) return; $('msgEnt').textContent = 'Lendo ' + f.name + '…';
+  try {
+    let t = '';
+    if (/\.xlsx?$/i.test(f.name)) { if (!window.XLSX) throw new Error('Para ler Excel precisa de internet na 1ª vez. Ou copie e cole.'); const wb = XLSX.read(await f.arrayBuffer()); t = XLSX.utils.sheet_to_csv(wb.Sheets[wb.SheetNames[0]], { FS: '\t', rawNumbers: true }); }
+    else if (/\.pdf$/i.test(f.name)) { const lib = window.pdfjsLib; if (!lib) throw new Error('Para ler PDF precisa de internet na 1ª vez. Ou copie o texto e cole.');
+      lib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      const pdf = await lib.getDocument({ data: await f.arrayBuffer() }).promise; const pags = [];
+      for (let i = 1; i <= pdf.numPages; i++) { const tc = await (await pdf.getPage(i)).getTextContent(); const lin = {}; tc.items.forEach((it) => { const y = Math.round(it.transform[5]); (lin[y] = lin[y] || []).push({ x: it.transform[4], s: it.str }); });
+        pags.push(Object.keys(lin).sort((a, b) => b - a).map((k) => lin[k].sort((a, b) => a.x - b.x).map((o) => o.s).join('  ')).join('\n')); }
+      t = pags.join('\n'); }
+    else { const buf = new Uint8Array(await f.arrayBuffer()); t = new TextDecoder('utf-8').decode(buf); if (t.includes('\uFFFD')) t = new TextDecoder('windows-1252').decode(buf); }
+    $('ent').value = consertarLetras(t.replace(/^\uFEFF/, '')); $('msgEnt').innerHTML = '<span class="o">✓ ' + esc(f.name) + ' lido.</span>';
+    if (/\.json$/i.test(f.name) && pecaAtual !== 'json') { pecaAtual = 'json'; mostrarPecas(); }
+    aplicar();
+  } catch (er) { $('msgEnt').innerHTML = '<span class="w">' + esc(er.message) + '</span>'; }
+};
+async function copiar(t) { try { await navigator.clipboard.writeText(t); $('okSai').textContent = '✓ Copiado.'; } catch (e) { $('okSai').textContent = 'Não consegui copiar: segure no texto e copie.'; } }
+$('copiar').onclick = () => copiar($('sai').value);
+$('baixar').onclick = () => { if (!$('sai').value) return; const f = $('fmt').value, ext = { csv: 'csv', json: 'json', tsv: 'tsv', md: 'md', txt: 'txt' }[f] || 'txt';
+  const tipo = { csv: 'text/csv', json: 'application/json', tsv: 'text/tab-separated-values', md: 'text/markdown', txt: 'text/plain' }[f] || 'text/plain';
+  try { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([($('bom').checked ? '\uFEFF' : '') + $('sai').value], { type: tipo + ';charset=utf-8' })); a.download = 'montador.' + ext; document.body.appendChild(a); a.click(); a.remove(); $('okSai').textContent = 'Se não baixou, use Copiar.'; } catch (e) { $('okSai').textContent = 'Use Copiar.'; } };
+
+// ───────── modelos (guardar a peça + escolhas) ─────────
+function mostrarModelos() { const ms = lerPref('modelos', []);
+  $('modelos').innerHTML = ms.length ? ms.map((m, i) => '<span>' + esc(m.nome) + '<button data-usar="' + i + '">usar</button><button data-tirar="' + i + '">✕</button></span>').join('') : '<small>Nenhum ainda.</small>'; }
+$('salvarModelo').onclick = () => { const nome = $('nomeModelo').value.trim(); if (!nome) { $('nomeModelo').focus(); return; }
+  const ms = lerPref('modelos', []).filter((m) => m.nome !== nome); ms.push({ nome, peca: pecaAtual, op: PECAS[pecaAtual].ler(), fmt: $('fmt').value }); gravarPref('modelos', ms); $('nomeModelo').value = ''; mostrarModelos(); };
+$('modelos').onclick = (e) => { const ms = lerPref('modelos', []); const u = e.target.dataset.usar, t = e.target.dataset.tirar;
+  if (t != null) { ms.splice(+t, 1); gravarPref('modelos', ms); mostrarModelos(); return; }
+  if (u != null) { const m = ms[+u]; pecaAtual = m.peca; mostrarPecas(); $('previa').innerHTML = ''; PECAS[pecaAtual].por(m.op); $('fmt').value = m.fmt; if ($('ent').value.trim()) aplicar(); $('msg').innerHTML = '<span class="o">Modelo "' + esc(m.nome) + '" pronto. Cole ou escolha o arquivo.</span>'; } };
+
+mostrarPecas(); mostrarModelos();
+$('ent').value = 'Exemplo (fictício) — apague e cole o seu\n2024\t0,57\t0,81\t0,19\t0,37\t0,46\t0,25\t0,26\t-0,14\t0,48\t0,61\t0,33\t0,52';
+if (pecaAtual === 'indices') aplicar();
+}
+</script>
+</body>
+</html>
